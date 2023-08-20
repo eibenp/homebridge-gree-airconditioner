@@ -1,16 +1,16 @@
 {
   "private": true,
-  "displayName": "Plugin Name",
-  "name": "homebridge-plugin-name",
+  "displayName": "GREE Air Conditioner",
+  "name": "@eibenp/homebridge-gree-airconditioner",
   "version": "1.0.0",
-  "description": "A short description about what your plugin does.",
+  "description": "Control GREE Air Conditioners from Homebridge",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "https://github.com/eibenp/homebridge-gree-airconditioner.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/eibenp/homebridge-gree-airconditioner/issues"
   },
   "engines": {
     "node": "^18.17.0",
@@ -24,9 +24,15 @@
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "air contitioning",
+    "gree ac",
+    "homebridge heatercooler",
+    "gree air conditioner"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "homebridge-config-ui-x": "^4.50.5"
+  },
   "devDependencies": {
     "@types/node": "^18.16.20",
     "@typescript-eslint/eslint-plugin": "^5.62.0",

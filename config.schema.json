@@ -1,16 +1,237 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "GREEAirConditioner",
   "pluginType": "platform",
   "singular": true,
   "schema": {
     "type": "object",
     "properties": {
       "name": {
-        "title": "Name",
         "type": "string",
         "required": true,
-        "default": "Example Dynamic Platform"
+        "default": "GREE Air Conditioner"
+      },
+      "port": {
+        "type": "integer",
+        "required": true,
+        "default": 7002,
+        "minimum": 1025
+      },
+      "scanAddress": {
+        "type": "string",
+        "required": true,
+        "default": "192.168.1.255",
+        "format": "ipv4"
+      },
+      "scanCount": {
+        "type": "integer",
+        "required": true,
+        "default": 10,
+        "minimum": 3
+      },
+      "scanTimeout": {
+        "type": "integer",
+        "required": true,
+        "default": 3,
+        "minimum": 1
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "mac": {
+              "type": "string",
+              "required": true,
+              "pattern": "^[a-f0-9]{12}$"
+            },
+            "name": {
+              "type": "string",
+              "required": false
+            },
+            "model": {
+              "type": "string",
+              "required": false
+            },
+            "speedSteps": {
+              "type": "integer",
+              "required": true,
+              "default": 5,
+              "oneOf": [
+                {
+                  "title": "3-step model",
+                  "enum": [
+                    3
+                  ]
+                },
+                {
+                  "title": "5-step model",
+                  "enum": [
+                    5
+                  ]
+                }
+              ]
+            },
+            "statusUpdateInterval": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1,
+              "default": 10
+            },
+            "sensorOffset": {
+              "type": "integer",
+              "required": false,
+              "default": 40
+            },
+            "minimumTargetTemperature": {
+              "type": "integer",
+              "required": false,
+              "default": 16
+            },
+            "maximumTargetTemperature": {
+              "type": "integer",
+              "required": false,
+              "default": 30
+            },
+            "xFanEnabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "disabled": {
+              "type": "boolean"
+            }
+          }
+        }
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "key": "name",
+      "title": "Name:"
+    },
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        {
+          "key": "scanAddress",
+          "flex": "1 1 50%",
+          "title": "Scan address:",
+          "description": "Local network broadcast address"
+        },
+        {
+          "key": "port",
+          "flex": "1 1 50%",
+          "title": "Port:"
+        },
+        {
+          "key": "scanCount",
+          "flex": "1 1 50%",
+          "title": "Scan count:",
+          "description": "Initial device discovery retry count"
+        },
+        {
+          "key": "scanTimeout",
+          "flex": "1 1 50%",
+          "title": "Scan timeout:",
+          "description": "Timeout in seconds between device discovery retries"
+        }
+      ]
+    },
+    {
+      "type": "array",
+      "key": "devices",
+      "title": "Devices",
+      "buttonText": "Add device",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        {
+          "type": "div",
+          "displayFlex": true,
+          "flex-flow": "row wrap",
+          "items": [
+            {
+              "key": "devices[].disabled",
+              "flex": "1 1 100%",
+              "title": "Disabled"
+            },
+            {
+              "key": "devices[].mac",
+              "flex": "1 1 50%",
+              "title": "MAC address (Serial Number):",
+              "description": "MAC address of the device using lowercase letters and no separators"
+            },
+            {
+              "key": "devices[].name",
+              "flex": "1 1 50%",
+              "title": "Device name:",
+              "description": "Custom name of the device"
+            },
+            {
+              "key": "devices[].model",
+              "flex": "1 1 50%",
+              "title": "Device model:",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].speedSteps",
+              "flex": "1 1 50%",
+              "title": "Fan speed steps:",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].statusUpdateInterval",
+              "flex": "1 1 50%",
+              "title": "Status update interval:",
+              "description": "Update interval (in seconds)",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].sensorOffset",
+              "flex": "1 1 50%",
+              "title": "Temperature offset:",
+              "description": "Temperature sensor calibration (in Celsius)",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].minimumTargetTemperature",
+              "flex": "1 1 50%",
+              "title": "Minimum target temperature:",
+              "description": "Minimum target temperature (in Celsius)",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].maximumTargetTemperature",
+              "flex": "1 1 50%",
+              "title": "Maximum target temperature:",
+              "description": "Maximum target temperature (in Celsius)",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].xFanEnabled",
+              "flex": "1 1 50%",
+              "title": "xFan enabled",
+              "description": "If enabled then xFan functionality is turned on automatically on device",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
