@@ -3,6 +3,7 @@ import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform } from './platform';
 import { DeviceConfig } from './settings';
+import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
 
@@ -26,6 +27,7 @@ export class GreeAirConditioner {
     private readonly accessory: PlatformAccessory,
     private readonly deviceConfig: DeviceConfig,
     private readonly port: number,
+    private readonly platform_ts: GreeAirConditionerTS,
   ) {
     this.platform.log.debug(`[${this.getDeviceLabel()}] deviceConfig -> %j`, deviceConfig);
     // set accessory information
@@ -49,9 +51,22 @@ export class GreeAirConditioner {
       this.accessory.addService(this.platform.Service.HeaterCooler, this.accessory.displayName, undefined);
     this.HeaterCooler.displayName = this.accessory.displayName;
 
-    this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
-      this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor - ' + this.accessory.displayName, undefined);
-    this.TemperatureSensor.displayName = 'Temperature Sensor - ' + this.accessory.displayName;
+    if (deviceConfig.temperatureSensor === 'child') {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Add Temperature Sensor child service`);
+      this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
+        this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor - ' + this.accessory.displayName, undefined);
+      this.TemperatureSensor.displayName = 'Temperature Sensor - ' + this.accessory.displayName;
+    } else {
+      const ts = this.accessory.getService(this.platform.Service.TemperatureSensor);
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Temperature Sensor child service not allowed (%s)`, ts?.displayName);
+      if (ts !== undefined) {
+        this.platform.log.debug(`[${this.getDeviceLabel()}] Remove Temperature Sensor child service (%s)`, ts.displayName);
+        this.accessory.removeService(ts);
+      }
+    }
+
+    this.HeaterCooler.setPrimaryService(true);
+    this.TemperatureSensor?.setPrimaryService(false);
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://developers.homebridge.io/#/service/HeaterCooler
@@ -675,6 +690,9 @@ export class GreeAirConditioner {
       this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
         .updateValue(this.currentTemperature);
       this.TemperatureSensor?.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+        .updateValue(this.currentTemperature);
+      this.platform_ts?.setCurrentTemperature(this.currentTemperature);
+      this.platform_ts?.TemperatureSensor.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
         .updateValue(this.currentTemperature);
     } else if (props.includes(commands.targetTemperature.code) && this.TemperatureSensor === undefined) {
       // temperature is not accessible -> targetTemperature is saved as currentTemperature

@@ -17,6 +17,7 @@ export interface DeviceConfig {
   minimumTargetTemperature: number;
   maximumTargetTemperature: number;
   xFanEnabled: boolean;
+  temperatureSensor: string;
   disabled?: boolean;
 }
 
@@ -27,6 +28,7 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   minimumTargetTemperature: 16,
   maximumTargetTemperature: 30,
   xFanEnabled: true,
+  temperatureSensor: 'disabled',
 };
 
 export const UDP_SCAN_PORT = 7000;

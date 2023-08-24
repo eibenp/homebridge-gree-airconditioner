@@ -96,6 +96,31 @@
               "type": "boolean",
               "default": false
             },
+            "temperatureSensor": {
+              "type": "string",
+              "required": true,
+              "default": "disabled",
+              "oneOf": [
+                {
+                  "title": "Disabled",
+                  "enum": [
+                    "disabled"
+                  ]
+                },
+                {
+                  "title": "Child accessory",
+                  "enum": [
+                    "child"
+                  ]
+                },
+                {
+                  "title": "Separate accessory",
+                  "enum": [
+                    "separate"
+                  ]
+                }
+              ]
+            },
             "disabled": {
               "type": "boolean"
             }
@@ -197,7 +222,7 @@
               "key": "devices[].sensorOffset",
               "flex": "1 1 50%",
               "title": "Temperature offset:",
-              "description": "Temperature sensor calibration (in Celsius)",
+              "description": "Temperature sensor calibration (in Degrees Celsius)",
               "condition": {
                 "functionBody": "return model.devices[arrayIndices].disabled !== true;"
               }
@@ -206,7 +231,7 @@
               "key": "devices[].minimumTargetTemperature",
               "flex": "1 1 50%",
               "title": "Minimum target temperature:",
-              "description": "Minimum target temperature (in Celsius)",
+              "description": "Minimum target temperature (in Degrees Celsius)",
               "condition": {
                 "functionBody": "return model.devices[arrayIndices].disabled !== true;"
               }
@@ -215,7 +240,7 @@
               "key": "devices[].maximumTargetTemperature",
               "flex": "1 1 50%",
               "title": "Maximum target temperature:",
-              "description": "Maximum target temperature (in Celsius)",
+              "description": "Maximum target temperature (in Degrees Celsius)",
               "condition": {
                 "functionBody": "return model.devices[arrayIndices].disabled !== true;"
               }
@@ -224,7 +249,16 @@
               "key": "devices[].xFanEnabled",
               "flex": "1 1 50%",
               "title": "xFan enabled",
-              "description": "If enabled then xFan functionality is turned on automatically on device",
+              "description": "If enabled, then xFan functionality is turned on automatically on the device",
+              "condition": {
+                "functionBody": "return model.devices[arrayIndices].disabled !== true;"
+              }
+            },
+            {
+              "key": "devices[].temperatureSensor",
+              "flex": "1 1 50%",
+              "title": "Temperature sensor:",
+              "description": "Additional temperature sensor in Home App",
               "condition": {
                 "functionBody": "return model.devices[arrayIndices].disabled !== true;"
               }
