@@ -85,11 +85,13 @@
             "minimumTargetTemperature": {
               "type": "integer",
               "required": false,
+              "minimum": 16,
               "default": 16
             },
             "maximumTargetTemperature": {
               "type": "integer",
               "required": false,
+              "maximum": 30,
               "default": 30
             },
             "xFanEnabled": {

@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform } from './platform';
-import { DeviceConfig } from './settings';
+import { DeviceConfig, TEMPERATURE_TABLE } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -96,7 +96,7 @@ export class GreeAirConditioner {
       .setProps({
         minValue: this.deviceConfig.minimumTargetTemperature,
         maxValue: this.deviceConfig.maximumTargetTemperature,
-        minStep: 1.0 })
+        minStep: 0.5 })
       .onGet(this.getTargetTemperature.bind(this, 'CoolingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
@@ -105,7 +105,7 @@ export class GreeAirConditioner {
       .setProps({
         minValue: this.deviceConfig.minimumTargetTemperature,
         maxValue: this.deviceConfig.maximumTargetTemperature,
-        minStep: 1.0 })
+        minStep: 0.5 })
       .onGet(this.getTargetTemperature.bind(this, 'HeatingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
@@ -434,6 +434,46 @@ export class GreeAirConditioner {
     return name;
   }
 
+  calcDeviceTargetTemp(temp: number): number {
+    const baseTemp = Math.round(temp);
+    const baseFahrenheit = temp * 9 / 5 + 32;
+    const baseFahrenheitDecimalPart = baseFahrenheit - Math.floor(baseFahrenheit);
+    const correction = (baseFahrenheitDecimalPart >= 0.05 && baseFahrenheitDecimalPart < 0.15) ||
+      (baseFahrenheitDecimalPart >= 0.25 && baseFahrenheitDecimalPart < 0.35) ? 1 : 0;
+    return baseTemp - correction;
+  }
+
+  calcDeviceTargetOffset(temp: number): number {
+    if (temp === 16) {
+      return 0;
+    }
+    const baseFahrenheit = temp * 9 / 5 + 32;
+    const baseFahrenheitDecimalPart = baseFahrenheit - Math.floor(baseFahrenheit);
+    return (((baseFahrenheitDecimalPart >= 0.05 && baseFahrenheitDecimalPart < 0.15) ||
+      (baseFahrenheitDecimalPart >= 0.25 && baseFahrenheitDecimalPart < 0.35) ||
+      (baseFahrenheitDecimalPart >= 0.55 && baseFahrenheitDecimalPart < 0.65) ||
+      (baseFahrenheitDecimalPart >= 0.75 && baseFahrenheitDecimalPart < 0.85)) ? 1 : 0);
+  }
+
+  getTargetTempFromDevice(temp, offset): number {
+    const key = temp.toString() + ',' + offset.toString();
+    const value = TEMPERATURE_TABLE[key];
+    if (value === undefined) {
+      return 25; // default value if invalid data received from device
+    }
+    // some temperature values are the same on the physical AC unit -> fix this issue:
+    const targetValue = this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).value ||
+      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).value;
+    if ((targetValue === 17.5 && value === 18) ||
+      (targetValue === 22.5 && value === 23) ||
+      (targetValue === 27.5 && value === 28)) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] TargetTemperature FIX: %d -> %d`, value, targetValue);
+      return targetValue;
+    }
+    // no fix needed, return original value
+    return value;
+  }
+
   // device functions
   get power() {
     return (this.status[commands.power.code] === commands.power.value.on);
@@ -502,7 +542,8 @@ export class GreeAirConditioner {
   }
 
   get targetTemperature() {
-    return Math.max(Math.min((this.status[commands.targetTemperature.code] || 25) + (this.status[commands.temperatureOffset.code] || 1) - 1,
+    return Math.max(Math.min(
+      this.getTargetTempFromDevice(this.status[commands.targetTemperature.code] || 25, this.status[commands.temperatureOffset.code] || 0),
       (this.deviceConfig.maximumTargetTemperature)), (this.deviceConfig.minimumTargetTemperature));
   }
 
@@ -510,11 +551,18 @@ export class GreeAirConditioner {
     if (value === this.targetTemperature) {
       return;
     }
-    const command: Record<string, unknown> = { [commands.targetTemperature.code]: value };
-    let logValue = 'targetTemperature -> ' + value;
+    const tempValue = this.calcDeviceTargetTemp(value);
+    const command: Record<string, unknown> = { [commands.targetTemperature.code]: tempValue };
+    let logValue = 'targetTemperature -> ' + tempValue.toString();
+    const tempOffset = this.calcDeviceTargetOffset(value);
+    command[commands.temperatureOffset.code] = tempOffset;
+    logValue += ', temperatureOffset -> ' + tempOffset.toString();
     const displayUnits = this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits).value;
     const deviceDisplayUnits = (displayUnits === this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS) ?
       commands.units.value.celsius : commands.units.value.fahrenheit;
+    if (deviceDisplayUnits === commands.units.value.fahrenheit) {
+      logValue += ' (-> ' + Math.round(value * 9 / 5 +32) + ' °F)';
+    }
     if (deviceDisplayUnits !== this.units) {
       command[commands.units.code] = deviceDisplayUnits;
       logValue += ', units -> ' + this.getKeyName(commands.units.value, deviceDisplayUnits);
@@ -642,17 +690,15 @@ export class GreeAirConditioner {
               .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
             break;
           case commands.mode.value.auto:
-            if (this.currentTemperature > this.targetTemperature) {
+            if (this.currentTemperature > this.targetTemperature + 1.5) {
               this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> COOLING`);
               this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
                 .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING);
-            }
-            if (this.currentTemperature < this.targetTemperature) {
+            } else if (this.currentTemperature < this.targetTemperature - 1.5) {
               this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> HEATING`);
               this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
                 .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING);
-            }
-            if (this.currentTemperature === this.targetTemperature) {
+            } else {
               this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> IDLE`);
               this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
                 .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);

@@ -12,7 +12,7 @@ It is recommended to add all devices to the Homebridge configuration, so that yo
 
 xFan function is also supported, but it works automatically if enabled in Homebridge configuration. If xFan is enabled for the device, it is automatically turned on when you select a supported operating mode in Home App. If xFan is disabled, the Home App will not modify its actual setting in any case.
 
-Temperature display units in the Home App are in sync with the AC unit's display. (Configuration settings are required to be specified always in Degrees Celsius, independently from the display units.)
+Temperature display units of the physical device can be controlled using the Home App. (Configuration settings are required to be specified always in Degrees Celsius, independently from the display units.)
 
 Vertical swing mode can be turned on/off, but special swing settings can't be controlled using the Home App.
 
@@ -39,6 +39,9 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Lights of the AC unit can't be controlled.
 * Additional device functions (e.g. health mode, sleep, SE) are not supported.
 * Horizontal swing control is not supported, it remains the same as set directly on the device.
+* GREE AC units do not support temperature ranges in auto mode, so temperature ranges have zero length in Home App.
+* GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App).
+* There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 
 ## Installation instructions
 
@@ -49,6 +52,10 @@ Command line install:
 npm install @eibenp/homebridge-gree-airconditioner -g
 ```
 If successfully installed and configured, your devices will appear on the Homebridge GUI Accessories page and also in Home App (if Homebridge is already connected to the Home App). (If the additional temperature sensor is enabled, then 2 items will be displayed for supported devices (Heater Cooler and Temperature Sensor).)
+
+## Upgrade
+
+When upgrading from release v1.0.1 or earlier it is neccessary to disable and re-enable the devices to force Home App to reinitialize settings.
 
 ## Example configuration
 _Only the relevant part of the configuration file is displayed:_
@@ -92,8 +99,8 @@ _Only the relevant part of the configuration file is displayed:_
 * speedSteps - fan speed steps of the unit (valid values are: 3 and 5)
 * statusUpdateInterval - device status will be refreshed based on this interval (in seconds)
 * sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in Degrees Celsius)
-* minimumTargetTemperature - minimum target temperature accepted by the device (default is 16 °C, must be specified in Degrees Celsius)
-* maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in Degrees Celsius)
+* minimumTargetTemperature - minimum target temperature accepted by the device (default is 16 °C, must be specified in Degrees Celsius, valid values: 16-30)
+* maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in Degrees Celsius, valid values: 16-30)
 * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
 * temperatureSensor - control additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
 * disabled - set to true if you do not want to control this device in the Home App (old devices can be removed using this parameter)
@@ -126,6 +133,25 @@ ipconfig
 # Subnet Mask . . . . . . . . . . . : 255.255.255.0
 # Default Gateway . . . . . . . . . : 192.168.1.254
 ```
+
+### Device settings
+
+Some settings are initialized by Home App only once (when enabling the device). They can only be changed by disabling and re-enabling the device. The following settings are affected:
+
+* name
+* model
+* speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+
+### Temperature display units
+
+Home App allows to set the device temperature display units but is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device.
+
+### Temperature measurement
+
+Temperature measurement is not perfect if using the built-in sensor. It is highly affected by current operation and can differ from actual temperature of other places in the room. It is recommended to use a sperarate temperature sensor and place it not too close to the AC unit.
+
 ## Refs & Credits
 
 Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https://github.com/kongkx) for GREE network protocol information and code samples.

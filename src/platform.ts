@@ -122,6 +122,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         {speedSteps: 5} : {}),
       ...((devcfg.temperatureSensor && ['disabled', 'child', 'separate'].includes((devcfg.temperatureSensor as string).toLowerCase())) ?
         {temperatureSensor: (devcfg.temperatureSensor as string).toLowerCase()} : {temperatureSensor: 'disabled'}),
+      ...(devcfg.minimumTargetTemperature && (devcfg.minimumTargetTemperature < DEFAULT_DEVICE_CONFIG.minimumTargetTemperature ||
+        devcfg.minimumTargetTemperature > DEFAULT_DEVICE_CONFIG.maximumTargetTemperature) ?
+        { minimumTargetTemperature: DEFAULT_DEVICE_CONFIG.minimumTargetTemperature } : {}),
+      ...(devcfg.maximumTargetTemperature && (devcfg.maximumTargetTemperature < DEFAULT_DEVICE_CONFIG.minimumTargetTemperature ||
+        devcfg.maximumTargetTemperature > DEFAULT_DEVICE_CONFIG.maximumTargetTemperature) ?
+        { maximumTargetTemperature: DEFAULT_DEVICE_CONFIG.maximumTargetTemperature } : {}),
     };
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {
