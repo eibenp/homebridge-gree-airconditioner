@@ -18,6 +18,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   // this is used to track restored cached accessories
   private devices: Record<string, PlatformAccessory>;
   private initializedDevices: Record<string, boolean>;
+  private skippedDevices: Record<string, boolean>;
   private socket: dgram.Socket;
   private timer: NodeJS.Timeout | undefined;
   private scanCount: number;
@@ -30,6 +31,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.socket = dgram.createSocket({type: 'udp4', reuseAddr: true});
     this.devices = {};
     this.initializedDevices = {};
+    this.skippedDevices = {};
     this.scanCount = 0;
     this.log.debug('Finished initializing platform:', this.config.name);
 
@@ -81,7 +83,6 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           this.socket.close();
           // remove accessories not found on network
           Object.entries(this.devices).forEach(([key, value]) => {
-            // this.log.debug('Cleanup', key);
             if (!this.initializedDevices[value.UUID]) {
               this.log.debug('Cleanup -> Remove', value.displayName, key, value.UUID);
               delete this.config.devices[key];
@@ -138,7 +139,10 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     let accessory_ts = this.devices[deviceInfo.mac + '_ts'];
 
     if (deviceConfig?.disabled) {
-      this.log.info(`accessory ${deviceInfo.mac} skipped`);
+      if (!this.skippedDevices[deviceInfo.mac]) {
+        this.log.info(`accessory ${deviceInfo.mac} skipped`);
+        this.skippedDevices[deviceInfo.mac] = true;
+      }
       if (accessory) {
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
         delete this.devices[deviceConfig.mac];
