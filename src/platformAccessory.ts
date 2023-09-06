@@ -561,7 +561,9 @@ export class GreeAirConditioner {
     const deviceDisplayUnits = (displayUnits === this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS) ?
       commands.units.value.celsius : commands.units.value.fahrenheit;
     if (deviceDisplayUnits === commands.units.value.fahrenheit) {
-      logValue += ' (-> ' + Math.round(value * 9 / 5 + 32) + ' °F)';
+      logValue += ' (-> ' + Math.round(value * 9 / 5 + 32).toString() + ' °F)';
+    } else {
+      logValue += ' (-> ' + value.toString() + ' °C)';
     }
     if (deviceDisplayUnits !== this.units) {
       command[commands.units.code] = deviceDisplayUnits;
