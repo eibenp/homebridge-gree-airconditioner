@@ -13,7 +13,7 @@
     "url": "https://github.com/eibenp/homebridge-gree-airconditioner/issues"
   },
   "engines": {
-    "node": "^18.15.0",
+    "node": "^18.15.0 || ^20.8.0",
     "homebridge": "^1.6.0"
   },
   "main": "dist/index.js",
@@ -34,7 +34,7 @@
     "homebridge-config-ui-x": "^4.50.5"
   },
   "devDependencies": {
-    "@types/node": "^18.16.20",
+    "@types/node": "^18.15.0 || ^20.8.0",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.45.0",

@@ -72,27 +72,32 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   discoverDevices() {
-    this.socket.bind(this.config.port, () => {
-      this.log.info(`UDP server bind to port ${this.config.port}`);
-      this.socket.setBroadcast(true);
-      this.timer = setInterval(() => {
-        this.scanCount += 1;
-        if (this.scanCount > this.config.scanCount && this.timer) {
-          this.log.info('Scan finished.');
-          clearInterval(this.timer);
-          this.socket.close();
-          // remove accessories not found on network
-          Object.entries(this.devices).forEach(([key, value]) => {
-            if (!this.initializedDevices[value.UUID]) {
-              this.log.debug('Cleanup -> Remove', value.displayName, key, value.UUID);
-              delete this.config.devices[key];
-            }
-          });
-        } else {
-          this.broadcastScan();
-        }
-      }, this.config.scanTimeout * 1000); // scanTimeout in seconds
-    });
+    if (this.config.port !== undefined && typeof this.config.port === 'number' && this.config.port === this.config.port &&
+      this.config.port >= 0 && this.config.port <= 65535) {
+      this.socket.bind(this.config.port, () => {
+        this.log.info(`UDP server bind to port ${this.config.port}`);
+        this.socket.setBroadcast(true);
+        this.timer = setInterval(() => {
+          this.scanCount += 1;
+          if (this.scanCount > this.config.scanCount && this.timer) {
+            this.log.info('Scan finished.');
+            clearInterval(this.timer);
+            this.socket.close();
+            // remove accessories not found on network
+            Object.entries(this.devices).forEach(([key, value]) => {
+              if (!this.initializedDevices[value.UUID]) {
+                this.log.debug('Cleanup -> Remove', value.displayName, key, value.UUID);
+                delete this.config.devices[key];
+              }
+            });
+          } else {
+            this.broadcastScan();
+          }
+        }, this.config.scanTimeout * 1000); // scanTimeout in seconds
+      });
+    } else {
+      this.log.warn('Warning: Port is missing or misconfigured');
+    }
   }
 
   handleMessage = (msg, rinfo) => {
@@ -111,7 +116,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         });
       }
     } catch (err) {
-      this.log.error('handleMessage Error', err);
+      this.log.error('handleMessage Error:', err);
     }
   };
 
@@ -138,7 +143,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     let accessory = this.devices[deviceInfo.mac];
     let accessory_ts = this.devices[deviceInfo.mac + '_ts'];
 
-    if (deviceConfig?.disabled) {
+    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig.mac)) {
       if (!this.skippedDevices[deviceInfo.mac]) {
         this.log.info(`accessory ${deviceInfo.mac} skipped`);
         this.skippedDevices[deviceInfo.mac] = true;
@@ -207,7 +212,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.socket.send(message, 0, message.length, UDP_SCAN_PORT, this.config.scanAddress, (error) => {
       this.log.debug(`Broadcast '${message}' ${this.config.scanAddress}:${UDP_SCAN_PORT}`);
       if (error) {
-        this.log.error(error.message);
+        this.log.error('Error:', error.message);
       }
     });
   }
