@@ -45,11 +45,11 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 
 ## Installation instructions
 
-It is recommended to install the plugin using the graphical user interface of Homebridge ([Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x)). You can find the plugin if you search on the Plugins page for GREE Air Conditioner ('GREE AC' or '@eibenp/homebridge-gree-airconditioner' if you'd like an exact match). It is recommended to configure the plugin using the same GUI controls.
+It is recommended to install the plugin using the graphical user interface of Homebridge ([Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x)). You can find the plugin if you search on the Plugins page for GREE Air Conditioner ('GREE AC' or 'homebridge-gree-ac' if you'd like an exact match). It is recommended to configure the plugin using the same GUI controls.
 
 Command line install:
 ```
-npm install @eibenp/homebridge-gree-airconditioner -g
+npm install homebridge-gree-ac -g
 ```
 If successfully installed and configured, your devices will appear on the Homebridge GUI Accessories page and also in Home App (if Homebridge is already connected to the Home App). (If the additional temperature sensor is enabled, then 2 items will be displayed for supported devices (Heater Cooler and Temperature Sensor).)
 

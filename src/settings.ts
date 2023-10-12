@@ -6,7 +6,7 @@ export const PLATFORM_NAME = 'GREEAirConditioner';
 /**
  * This must match the name of your plugin as defined the package.json
  */
-export const PLUGIN_NAME = '@eibenp/homebridge-gree-airconditioner';
+export const PLUGIN_NAME = 'homebridge-gree-ac';
 
 export interface DeviceConfig {
   name?: string;
