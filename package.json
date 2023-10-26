@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eibenp/homebridge-gree-airconditioner.git"
+    "url": "git+https://github.com/eibenp/homebridge-gree-airconditioner.git"
   },
   "bugs": {
     "url": "https://github.com/eibenp/homebridge-gree-airconditioner/issues"
