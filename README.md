@@ -1,3 +1,11 @@
+[![npm](https://badgen.net/npm/v/homebridge-gree-ac/latest?icon=npm&label)](https://www.npmjs.com/package/homebridge-gree-ac)
+[![npm](https://badgen.net/npm/dt/homebridge-gree-ac?label=downloads)](https://www.npmjs.com/package/homebridge-gree-ac)
+[![Donate](https://badgen.net/badge/donate/paypal/yellow)](https://paypal.me/eibenp)
+
+> _*** Breaking changes ***_
+> 
+> Please read the [**Upgrade section**](#upgrade) before upgrading from version earlier than **v2.0.0** !
+
 # Homebridge GREE Air Conditioner Platform Plugin
 
 [Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home app](https://www.apple.com/home-app/). (Make GREE Air Conditioner HomeKit compatible.)
@@ -20,7 +28,7 @@ This plugin is designed to be as simple and clear as possible and supports prima
 
 ## Requirements
 
-* Node.js (>= 18.15.0) with NPM
+* Node.js (>= 18.15.0 || >= 20.8.0) with NPM
 * Homebridge (>= 1.6.0)
 
 You need to specify the local network broadcast address (192.168.1.255 in many home environments) and it's also recommended to add the device and specify its MAC address (Serial Number) in the configuration file.
@@ -41,6 +49,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Horizontal swing control is not supported, it remains the same as set directly on the device.
 * GREE AC units do not support temperature ranges in auto mode, so temperature ranges have zero length in Home App.
 * GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App).
+* Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 
 ## Installation instructions
@@ -55,7 +64,15 @@ If successfully installed and configured, your devices will appear on the Homebr
 
 ## Upgrade
 
-When upgrading from release v1.0.1 or earlier it is neccessary to disable and re-enable the devices to force Home App to reinitialize settings.
+There is no clean way to update the plugin to release v2.0.0 or later if you are using an older version (v1.x.x). You need to remove and reinstall the plugin during upgrade.
+
+### Upgrade steps
+
+1. Check out your current settings in Homebridge and also in Homekit (including scenes and automation rules)
+2. Uninstall the old version (this will remove all settings also)
+3. Install the new version
+4. Configure plugin in Homebridge
+5. Assign accessories to rooms and recreate scenes and automations in Homekit
 
 ## Example configuration
 _Only the relevant part of the configuration file is displayed:_
@@ -146,7 +163,7 @@ Some settings are initialized by Home App only once (when enabling the device). 
 
 ### Temperature display units
 
-Home App allows to set the device temperature display units but is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device.
+Home App allows to set the device temperature display units but it is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device.
 
 ### Temperature measurement
 
