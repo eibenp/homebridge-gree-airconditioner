@@ -30,7 +30,7 @@ This plugin is designed to be as simple and clear as possible and supports prima
 ## Requirements
 
 * Node.js (>= 18.15.0 || >= 20.8.0) with NPM
-* Homebridge (>= 1.6.0)
+* Homebridge (>= 1.8.0)
 
 You need to specify the local network broadcast address (192.168.1.255 in many home environments) and it's also recommended to add the device and specify its MAC address (Serial Number) in the configuration file.
 
@@ -59,6 +59,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App).
 * Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
+* Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed.
 
 ## Installation instructions
 

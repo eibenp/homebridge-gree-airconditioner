@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.1] - 2024-04-21
+
+- Fixed error on setting Threshold Temperature minimum and maximum values
+- Improved debug logging
+- Updated dependencies (Homebridge 1.8.0 or later required)
+
 ## [2.0.0] - 2023-10-26
 
 Homebridge platform plugin. **_homebridge-gee-ac_**

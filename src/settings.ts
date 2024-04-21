@@ -61,3 +61,5 @@ export const TEMPERATURE_TABLE = {
   '29,1': 29.5,
   '30,0': 30,
 };
+
+export const INIT_TEMP_TRESHOLD_TIMEOUT = 100;

@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform } from './platform';
-import { DeviceConfig, TEMPERATURE_TABLE } from './settings';
+import { DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -58,7 +58,8 @@ export class GreeAirConditioner {
       this.TemperatureSensor.displayName = 'Temperature Sensor - ' + this.accessory.displayName;
     } else {
       const ts = this.accessory.getService(this.platform.Service.TemperatureSensor);
-      this.platform.log.debug(`[${this.getDeviceLabel()}] Temperature Sensor child service not allowed (%s)`, ts?.displayName);
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Temperature Sensor child service not allowed%s`,
+        ts?.displayName !== undefined ? ' (' + ts?.displayName + ')' : '');
       if (ts !== undefined) {
         this.platform.log.debug(`[${this.getDeviceLabel()}] Remove Temperature Sensor child service (%s)`, ts.displayName);
         this.accessory.removeService(ts);
@@ -92,20 +93,16 @@ export class GreeAirConditioner {
       .onGet(this.getCurrentTemperature.bind(this, 'Temperature Sensor'));
 
     // register handlers for the Cooling Threshold Temperature Characteristic
+    // (minValue and maxValue can't be set here, they need an active accessory in cooling sate to set)
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
-      .setProps({
-        minValue: this.deviceConfig.minimumTargetTemperature,
-        maxValue: this.deviceConfig.maximumTargetTemperature,
-        minStep: 0.5 })
+      .setProps({ minStep: 0.5 })
       .onGet(this.getTargetTemperature.bind(this, 'CoolingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
     // register handlers for the Heating Threshold Temperature Characteristic
+    // (minValue and maxValue can't be set here, they need an active accessory in heating sate to set)
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
-      .setProps({
-        minValue: this.deviceConfig.minimumTargetTemperature,
-        maxValue: this.deviceConfig.maximumTargetTemperature,
-        minStep: 0.5 })
+      .setProps({ minStep: 0.5 })
       .onGet(this.getTargetTemperature.bind(this, 'HeatingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
@@ -274,66 +271,62 @@ export class GreeAirConditioner {
     if (this.power) {
       switch (this.mode) {
         case commands.mode.value.cool:
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-            'COOLING');
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> COOLING`);
+          setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING),
+            INIT_TEMP_TRESHOLD_TIMEOUT);
           return this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
         case commands.mode.value.heat:
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-            'HEATING');
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> HEATING`);
+          setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING),
+            INIT_TEMP_TRESHOLD_TIMEOUT);
           return this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
         case commands.mode.value.fan:
         case commands.mode.value.dry:
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-            'IDLE');
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> IDLE`);
           return this.platform.Characteristic.CurrentHeaterCoolerState.IDLE;
         case commands.mode.value.auto:
           if (this.currentTemperature > this.status[commands.targetTemperature.code]) {
-            this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-              'COOLING');
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> COOLING`);
+            setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING),
+              INIT_TEMP_TRESHOLD_TIMEOUT);
             return this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
           }
           if (this.currentTemperature < this.status[commands.targetTemperature.code]) {
-            this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-              'HEATING');
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> HEATING`);
+            setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING),
+              INIT_TEMP_TRESHOLD_TIMEOUT);
             return this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
           }
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-            'IDLE');
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> IDLE`);
           return this.platform.Characteristic.CurrentHeaterCoolerState.IDLE;
       }
     }
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState ->`,
-      'INACTIVE');
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> INACTIVE`);
     return this.platform.Characteristic.CurrentHeaterCoolerState.INACTIVE;
   }
 
   async getTargetHeaterCoolerState(): Promise<CharacteristicValue> {
     switch (this.mode) {
       case commands.mode.value.cool:
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Get TargetHeaterCoolerState ->`,
-          'COOL');
+        this.platform.log.debug(`[${this.getDeviceLabel()}] Get TargetHeaterCoolerState -> COOL`);
         return this.platform.Characteristic.TargetHeaterCoolerState.COOL;
       case commands.mode.value.heat:
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Get TargetHeaterCoolerState ->`,
-          'HEAT');
+        this.platform.log.debug(`[${this.getDeviceLabel()}] Get TargetHeaterCoolerState -> HEAT`);
         return this.platform.Characteristic.TargetHeaterCoolerState.HEAT;
     }
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Get TargetHeaterCoolerState ->`,
-      'AUTO');
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get TargetHeaterCoolerState -> AUTO`);
     return this.platform.Characteristic.TargetHeaterCoolerState.AUTO;
   }
 
   async getCurrentTemperature(service: string): Promise<CharacteristicValue> {
     const currentValue = this.currentTemperature;
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Get ${service} CurrentTemperature ->`,
-      currentValue);
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get ${service} CurrentTemperature ->`, currentValue);
     return currentValue;
   }
 
   async getTargetTemperature(target: string): Promise<CharacteristicValue> {
     const currentValue = this.targetTemperature;
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Get ${target} ->`,
-      currentValue);
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get ${target} ->`, currentValue);
     return currentValue;
   }
 
@@ -353,10 +346,10 @@ export class GreeAirConditioner {
       case commands.swingVertical.value.fixedMiddle:
       case commands.swingVertical.value.fixedLower:
       case commands.swingVertical.value.fixedLowest:
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Get SwingMode ->`, 'DISABLED');
+        this.platform.log.debug(`[${this.getDeviceLabel()}] Get SwingMode -> DISABLED`);
         return this.platform.Characteristic.SwingMode.SWING_DISABLED;
     }
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Get SwingMode ->`, 'ENABLED');
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get SwingMode -> ENABLED`);
     return this.platform.Characteristic.SwingMode.SWING_ENABLED;
   }
 
@@ -400,6 +393,37 @@ export class GreeAirConditioner {
   }
 
   // helper functions
+  initThresholdTemperature(HeaterCoolerState : number) {
+    switch (HeaterCoolerState) {
+      case this.platform.Characteristic.CurrentHeaterCoolerState.COOLING:
+        if (this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue !==
+          this.deviceConfig.minimumTargetTemperature ||
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue !==
+          this.deviceConfig.maximumTargetTemperature) {
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Set CoolingThresholdTemperature minValue -> %i, maxValue -> %i`,
+            this.deviceConfig.minimumTargetTemperature, this.deviceConfig.maximumTargetTemperature);
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+            .setProps({
+              minValue: this.deviceConfig.minimumTargetTemperature,
+              maxValue: this.deviceConfig.maximumTargetTemperature });
+        }
+        break;
+      case this.platform.Characteristic.CurrentHeaterCoolerState.HEATING:
+        if (this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue !==
+          this.deviceConfig.minimumTargetTemperature ||
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue !==
+          this.deviceConfig.maximumTargetTemperature) {
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Set HeatingThresholdTemperature minValue -> %i, maxValue -> %i`,
+            this.deviceConfig.minimumTargetTemperature, this.deviceConfig.maximumTargetTemperature);
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+            .setProps({
+              minValue: this.deviceConfig.minimumTargetTemperature,
+              maxValue: this.deviceConfig.maximumTargetTemperature });
+        }
+        break;
+    }
+  }
+
   getDeviceLabel() {
     return `${this.accessory.displayName} -- ${this.accessory.context.device.address}:${this.accessory.context.device.port}`;
   }
@@ -542,9 +566,25 @@ export class GreeAirConditioner {
   }
 
   get targetTemperature() {
+    let minValue = this.deviceConfig.minimumTargetTemperature;
+    let maxValue = this.deviceConfig.maximumTargetTemperature;
+    switch (this.status[commands.mode.code]) {
+      case commands.mode.value.cool:
+        minValue = Math.max(this.deviceConfig.minimumTargetTemperature,
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue || 10);
+        maxValue = Math.min(this.deviceConfig.maximumTargetTemperature,
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue || 35);
+        break;
+      case commands.mode.value.heat:
+        minValue = Math.max(this.deviceConfig.minimumTargetTemperature,
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue || 0);
+        maxValue = Math.min(this.deviceConfig.maximumTargetTemperature,
+          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue || 25);
+        break;
+    }
     return Math.max(Math.min(
       this.getTargetTempFromDevice(this.status[commands.targetTemperature.code] || 25, this.status[commands.temperatureOffset.code] || 0),
-      (this.deviceConfig.maximumTargetTemperature)), (this.deviceConfig.minimumTargetTemperature));
+      (maxValue)), (minValue));
   }
 
   set targetTemperature(value) {
@@ -844,12 +884,14 @@ export class GreeAirConditioner {
         message.pack,
         message.i === 1 ? undefined : this.key,
       );
+      this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Package -> %j`, pack);
       switch (pack.t) {
         case 'bindok': // package type is binding confirmation
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Device binding`);
           this.key = pack.key;
           this.bound = true;
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Package (Device binding) -> %j`, pack);
-          this.platform.log.info(`[${this.getDeviceLabel()}] Device is bound -> ${this.key}`);
+          this.platform.log.info(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac}`);
+          this.platform.log.debug(`[${this.getDeviceLabel()}] Device key -> ${this.key}`);
           if (this.updateTimer){
             clearInterval(this.updateTimer);
           }
@@ -862,7 +904,7 @@ export class GreeAirConditioner {
             pack.cols.forEach((col, i) => {
               this.status[col] = pack.dat[i];
             });
-            this.platform.log.debug(`[${this.getDeviceLabel()}] Package (Device status) -> %j`, pack);
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Device status -> %j`, this.status);
             if (!(pack.cols as [string]).includes(commands.temperature.code) &&
               (pack.cols as [string]).includes(commands.targetTemperature.code)) {
               // temperature is not accessible -> use targetTemperature
@@ -878,7 +920,7 @@ export class GreeAirConditioner {
           break;
         case 'res': // package type is response
           if (this.bound){
-            this.platform.log.debug(`[${this.getDeviceLabel()}] Package (Device response) -> %j`, pack);
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Device response`);
             const updatedParams = [] as Array<string>;
             pack.opt.forEach((opt, i) => {
               const value = pack.p !== undefined ? pack.p[i] : pack.val[i];
@@ -897,6 +939,7 @@ export class GreeAirConditioner {
   };
 
   sendMessage(message) {
+    this.platform.log.debug(`[${this.getDeviceLabel()}] sendMessage - Package -> %j`, message);
     const pack = crypto.encrypt(message, this.key);
     const payload = {
       cid: 'app',
@@ -907,8 +950,10 @@ export class GreeAirConditioner {
       pack,
     };
     try {
+      const msg = JSON.stringify(payload);
+      this.platform.log.debug(`[${this.getDeviceLabel()}] sendMessage`, msg);
       this.socket.send(
-        JSON.stringify(payload),
+        msg,
         this.accessory.context.device.port,
         this.accessory.context.device.address,
       );

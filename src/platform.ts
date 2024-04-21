@@ -105,9 +105,11 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     try {
       const message = JSON.parse(msg.toString());
       if (message.i !== 1 || message.t !== 'pack') {
+        this.log.debug('handleMessage - unknown response');
         return;
       }
       const pack = crypto.decrypt(message.pack);
+      this.log.debug('handleMessage - Package -> %j', pack);
       if (pack.t === 'dev') {
         this.registerDevice({
           ...pack,
@@ -116,7 +118,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         });
       }
     } catch (err) {
-      this.log.error('handleMessage Error:', err);
+      this.log.error('handleMessage', err);
     }
   };
 
@@ -212,7 +214,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.socket.send(message, 0, message.length, UDP_SCAN_PORT, this.config.scanAddress, (error) => {
       this.log.debug(`Broadcast '${message}' ${this.config.scanAddress}:${UDP_SCAN_PORT}`);
       if (error) {
-        this.log.error('Error:', error.message);
+        this.log.error('broadcastScan', error.message);
       }
     });
   }
