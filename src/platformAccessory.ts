@@ -133,7 +133,7 @@ export class GreeAirConditioner {
     this.bound = false;
     this.socket = dgram.createSocket({type: 'udp4', reuseAddr: true});
     this.socket.on('error', (err) => {
-      this.platform.log.error(`[${this.getDeviceLabel()}] Network error:`, err.message);
+      this.platform.log.error(`[${this.getDeviceLabel()}] Network`, err.message);
     });
     this.socket.on('message', this.handleMessage);
     this.socket.bind(this.port + parseInt(this.accessory.context.device.address.split('.')[3]) + 1,
@@ -913,7 +913,7 @@ export class GreeAirConditioner {
         this.accessory.context.device.address,
       );
     } catch (err) {
-      this.platform.log.error('Error:', (err as Error).message);
+      this.platform.log.error('sendMessage', (err as Error).message);
     }
   }
 
