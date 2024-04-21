@@ -40,6 +40,13 @@ It is highly recommended to use static IP addresses for connected devices. Using
 
 * GREE Air Conditioners with WiFi support
 * May work with other GREE compatible AC units
+> _*** Not all GREE devices are supported ***_
+> 
+> There are some newer GREE devices which use a different network protocol. They are not supported. Currently only GREE Wifi Modules are known in this problem but other devices may be affected also. Known unsupported devices:
+> * GREE GRJ532-J14 Wifi Modul
+> * GREE CS532AE Wifi Modul
+> 
+> If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported.
 
 ## Known limitations
 
