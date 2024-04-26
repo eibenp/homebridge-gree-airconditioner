@@ -19,6 +19,8 @@ export interface DeviceConfig {
   xFanEnabled: boolean;
   temperatureSensor: string;
   disabled?: boolean;
+  defaultVerticalSwing: number;
+  overrideDefaultVerticalSwing: number;
 }
 
 export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
@@ -29,6 +31,8 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   maximumTargetTemperature: 30,
   xFanEnabled: true,
   temperatureSensor: 'disabled',
+  defaultVerticalSwing: 1,
+  overrideDefaultVerticalSwing: 0
 };
 
 export const UDP_SCAN_PORT = 7000;
@@ -63,3 +67,9 @@ export const TEMPERATURE_TABLE = {
 };
 
 export const INIT_TEMP_TRESHOLD_TIMEOUT = 100;
+
+export const OVERRIDE_DEFAULT_SWING = {
+    never: 0,
+    powerOn: 1,
+    always: 2
+};
