@@ -16,6 +16,7 @@ export interface DeviceConfig {
   sensorOffset: number;
   minimumTargetTemperature: number;
   maximumTargetTemperature: number;
+  targetTemperatureStep: number;
   xFanEnabled: boolean;
   temperatureSensor: string;
   disabled?: boolean;
@@ -29,6 +30,7 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   sensorOffset: 40,
   minimumTargetTemperature: 16,
   maximumTargetTemperature: 30,
+  targetTemperatureStep: 1.0,
   xFanEnabled: true,
   temperatureSensor: 'disabled',
   defaultVerticalSwing: 1,

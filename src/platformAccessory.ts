@@ -95,14 +95,14 @@ export class GreeAirConditioner {
     // register handlers for the Cooling Threshold Temperature Characteristic
     // (minValue and maxValue can't be set here, they need an active accessory in cooling sate to set)
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
-      .setProps({ minStep: 0.5 })
+      .setProps({ minStep: this.deviceConfig.targetTemperatureStep })
       .onGet(this.getTargetTemperature.bind(this, 'CoolingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
     // register handlers for the Heating Threshold Temperature Characteristic
     // (minValue and maxValue can't be set here, they need an active accessory in heating sate to set)
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
-      .setProps({ minStep: 0.5 })
+      .setProps({ minStep: this.deviceConfig.targetTemperatureStep })
       .onGet(this.getTargetTemperature.bind(this, 'HeatingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
