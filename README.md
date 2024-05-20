@@ -32,7 +32,7 @@ This plugin is designed to be as simple and clear as possible and supports prima
 * Node.js (>= 18.15.0 || >= 20.8.0) with NPM
 * Homebridge (>= 1.8.0)
 
-You need to specify the local network broadcast address (192.168.1.255 in many home environments) and it's also recommended to add the device and specify its MAC address (Serial Number) in the configuration file.
+You need to specify the local network broadcast address (192.168.1.255 in many home environments) and it's also recommended to add the device and specify its MAC address (Serial Number) in the configuration file. Homebridge and all AC units have to be on the same subnet.
 
 It is highly recommended to use static IP addresses for connected devices. Using a dynamic IP address may require a restart of the Homebridge service on an address change to reconnect the device. Most routers offer static DHCP leases. (Please look at your router's documentation!)
 
@@ -60,6 +60,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed.
+* Homebridge and AC unit on different subnet is a not supported configuration.
 
 ## Installation instructions
 
@@ -159,6 +160,7 @@ ipconfig
 # Subnet Mask . . . . . . . . . . . : 255.255.255.0
 # Default Gateway . . . . . . . . . : 192.168.1.254
 ```
+You have to calculate the broadcast address from the IP address and the Subnet mask.
 
 ### Device settings
 
