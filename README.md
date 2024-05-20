@@ -32,7 +32,7 @@ This plugin is designed to be as simple and clear as possible and supports prima
 * Node.js (>= 18.15.0 || >= 20.8.0) with NPM
 * Homebridge (>= 1.8.0)
 
-You need to specify the local network broadcast address (192.168.1.255 in many home environments) and it's also recommended to add the device and specify its MAC address (Serial Number) in the configuration file. Homebridge and all AC units have to be on the same subnet.
+You need to specify the local network broadcast address (192.168.1.255 in many home environments) and it is also recommended to add the device and specify its MAC address (Serial Number) in the configuration file. Homebridge and all AC units have to be on the same subnet.
 
 It is highly recommended to use static IP addresses for connected devices. Using a dynamic IP address may require a restart of the Homebridge service on an address change to reconnect the device. Most routers offer static DHCP leases. (Please look at your router's documentation!)
 
