@@ -39,7 +39,8 @@ It is highly recommended to use static IP addresses for connected devices. Using
 ## Supported devices
 
 * GREE Air Conditioners with WiFi support
-* May work with other GREE compatible AC units
+* May work with other GREE compatible AC units (e.g. Sinclair)
+    * Successfully tested with Sinclair SIH-13BITW
 > _*** Not all GREE devices are supported ***_
 > 
 > There are some newer GREE devices which use a different network protocol. They are not supported. Currently only GREE Wifi Modules are known in this problem but other devices may be affected also. Known unsupported devices:
