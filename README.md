@@ -38,16 +38,19 @@ It is highly recommended to use static IP addresses for connected devices. Using
 
 ## Supported devices
 
-* GREE Air Conditioners with WiFi support
+* GREE Air Conditioners with WiFi support (hardware version v1.x.x)
 * May work with other GREE compatible AC units (e.g. Sinclair)
     * Successfully tested with Sinclair SIH-13BITW
 > _*** Not all GREE devices are supported ***_
 > 
-> There are some newer GREE devices which use a different network protocol. They are not supported. Currently only GREE Wifi Modules are known in this problem but other devices may be affected also. Known unsupported devices:
+> There are some newer GREE devices which use a different network protocol (e.g. hardware version v2.0.0 devices). They are not supported. Known unsupported devices:
 > * GREE GRJ532-J14 Wifi Modul
 > * GREE CS532AE Wifi Modul
+> * GREE GWH14QD-K3NNB4D/I
+> * GREE GEH12AA-K6DNA1A
 > 
 > If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported.
+> If you get _"Device not bound:..."_ warning message then your device is not supported.
 
 ## Known limitations
 

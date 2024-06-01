@@ -73,7 +73,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    */
   discoverDevices() {
     if (this.config.port !== undefined && typeof this.config.port === 'number' && this.config.port === this.config.port &&
-      this.config.port >= 0 && this.config.port <= 65535) {
+      this.config.port >= 0 && this.config.port <= 65279) {
       this.socket.bind(this.config.port, () => {
         this.log.info(`UDP server bind to port ${this.config.port}`);
         this.socket.setBroadcast(true);
@@ -83,11 +83,23 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
             this.log.info('Scan finished.');
             clearInterval(this.timer);
             this.socket.close();
-            // remove accessories not found on network
+            // remove accessories not found on network or not responsing to bind request
             Object.entries(this.devices).forEach(([key, value]) => {
-              if (!this.initializedDevices[value.UUID]) {
+              if (value && !value.context.bound && this.initializedDevices[value.UUID] &&
+                (value.context.deviceType === 'HeaterCooler' || value.context.deviceType === undefined)) {
+                this.log.warn('Device not bound: %s [%s -- %s:%s]', value.context.device.mac, value.displayName,
+                  value.context.device.address, value.context.device.port);
+                if (value.context.accessory_ts) {
+                  this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value.context.accessory_ts]);
+                  delete this.initializedDevices[value.context.accessory_ts.UUID];
+                  delete this.devices[value.context.accessory_ts.context.device.mac + '_ts'];
+                }
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value]);
+                delete this.initializedDevices[value.UUID];
+              }
+              if (value && !this.initializedDevices[value.UUID]) {
                 this.log.debug('Cleanup -> Remove', value.displayName, key, value.UUID);
-                delete this.config.devices[key];
+                delete this.devices[key];
               }
             });
           } else {
@@ -96,7 +108,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         }, this.config.scanTimeout * 1000); // scanTimeout in seconds
       });
     } else {
-      this.log.warn('Warning: Port is missing or misconfigured');
+      this.log.warn('Warning: Port is missing or misconfigured (Valid port values: 1025~65279)');
     }
   }
 
@@ -204,6 +216,8 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       // mark devices as initialized
       accessory.context.device = deviceInfo;
       accessory.context.deviceType = 'HeaterCooler';
+      accessory.context.accessory_ts = accessory_ts;
+      accessory.context.bound = false;
       this.initializedDevices[accessory.UUID] = true;
       return new GreeAirConditioner(this, accessory, deviceConfig, this.config.port as number, tsService);
     }

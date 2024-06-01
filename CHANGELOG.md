@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.2] - 2024-06-01
+
+- Fixed registration problem of unsupported devices (Unsupported devices were registered successfully
+  but Homebridge could not control them. Unsupported devices won't be registered any more.)
+
 ## [2.0.1] - 2024-04-21
 
 - Fixed error on setting Threshold Temperature minimum and maximum values
