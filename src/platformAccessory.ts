@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform } from './platform';
-import { DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT } from './settings';
+import { DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT, OVERRIDE_DEFAULT_SWING } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -184,7 +184,8 @@ export class GreeAirConditioner {
     const logValue = (value === this.platform.Characteristic.SwingMode.SWING_ENABLED) ? 'ENABLED' : 'DISABLED';
     this.platform.log.debug(`[${this.getDeviceLabel()}] Set SwingMode ->`, logValue);
     this.swingMode = (value === this.platform.Characteristic.SwingMode.SWING_ENABLED) ?
-      commands.swingVertical.value.full : commands.swingVertical.value.default;
+      commands.swingVertical.value.full : (this.deviceConfig.overrideDefaultVerticalSwing === OVERRIDE_DEFAULT_SWING.always) ?
+        this.deviceConfig.defaultVerticalSwing : commands.swingVertical.value.default;
   }
 
   async setRotationSpeed(value: CharacteristicValue) {
@@ -537,6 +538,12 @@ export class GreeAirConditioner {
           }
           break;
       }
+      if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
+        OVERRIDE_DEFAULT_SWING.never) && this.swingMode !== undefined) {
+        const value = (this.swingMode === commands.swingVertical.value.default) ? this.deviceConfig.defaultVerticalSwing : this.swingMode;
+        command[commands.swingVertical.code] = value;
+        logValue += ', swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
+      }
     }
     this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
     this.sendCommand(command);
@@ -557,6 +564,12 @@ export class GreeAirConditioner {
       // turn on xFan in Cool and Dry mode if xFan is enabled for this device
       logValue += ', xFan -> ' + this.getKeyName(commands.xFan.value, commands.xFan.value.on);
       command[commands.xFan.code] = commands.xFan.value.on;
+    }
+    if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
+      OVERRIDE_DEFAULT_SWING.never) && this.swingMode !== undefined) {
+      const value = (this.swingMode === commands.swingVertical.value.default) ? this.deviceConfig.defaultVerticalSwing : this.swingMode;
+      command[commands.swingVertical.code] = value;
+      logValue += ', swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
     }
     this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
     this.sendCommand(command);
@@ -824,6 +837,10 @@ export class GreeAirConditioner {
         case commands.swingVertical.value.fixedLowest:
           swing = this.platform.Characteristic.SwingMode.SWING_DISABLED;
           logValue = 'DISABLED';
+          if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
+            OVERRIDE_DEFAULT_SWING.never)) {
+            logValue += ' (' + this.getKeyName(commands.swingVertical.value, this.swingMode) + ')';
+          }
           break;
       }
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Swing Mode) ->`, logValue);

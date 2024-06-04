@@ -2,9 +2,10 @@ import dgram from 'dgram';
 import crypto from './crypto';
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic, Categories } from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG } from './settings';
+import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING } from './settings';
 import { GreeAirConditioner } from './platformAccessory';
 import { GreeAirConditionerTS } from './tsAccessory';
+import commands from './commands';
 
 /**
  * HomebridgePlatform
@@ -87,7 +88,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
             Object.entries(this.devices).forEach(([key, value]) => {
               if (value && !value.context.bound && this.initializedDevices[value.UUID] &&
                 (value.context.deviceType === 'HeaterCooler' || value.context.deviceType === undefined)) {
-                this.log.warn('Device not bound: %s [%s -- %s:%s]', value.context.device.mac, value.displayName,
+                this.log.warn('Warning: Device not bound: %s [%s -- %s:%s]', value.context.device.mac, value.displayName,
                   value.context.device.address, value.context.device.port);
                 if (value.context.accessory_ts) {
                   this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value.context.accessory_ts]);
@@ -148,6 +149,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       ...(devcfg.maximumTargetTemperature && (devcfg.maximumTargetTemperature < DEFAULT_DEVICE_CONFIG.minimumTargetTemperature ||
         devcfg.maximumTargetTemperature > DEFAULT_DEVICE_CONFIG.maximumTargetTemperature) ?
         { maximumTargetTemperature: DEFAULT_DEVICE_CONFIG.maximumTargetTemperature } : {}),
+      ...((devcfg.defaultVerticalSwing && [commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
+        commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
+        commands.swingVertical.value.fixedLowest].includes(devcfg.defaultVerticalSwing)) ?
+        { defaultVerticalSwing: devcfg.defaultVerticalSwing } : {}),
+      ...((devcfg.overrideDefaultVerticalSwing && Object.entries(OVERRIDE_DEFAULT_SWING).includes(devcfg.overrideDefaultVerticalSwing)) ?
+        { overrideDefaultVerticalSwing: devcfg.overrideDefaultVerticalSwing } : {}),
     };
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {

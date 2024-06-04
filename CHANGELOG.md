@@ -1,9 +1,16 @@
 # Changelog
 
-## [2.0.2] - 2024-06-01
+## [2.0.2] - 2024-06-04
+
+### New features
+
+- Override default fixed vertical swing position to a predefined position
+
+### Fixes
 
 - Fixed registration problem of unsupported devices (Unsupported devices were registered successfully
   but Homebridge could not control them. Unsupported devices won't be registered any more.)
+- Valid port value verification
 
 ## [2.0.1] - 2024-04-21
 

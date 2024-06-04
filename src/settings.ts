@@ -1,3 +1,4 @@
+import commands from './commands';
 /**
  * This is the name of the platform that users will use to register the plugin in the Homebridge config.json
  */
@@ -7,6 +8,12 @@ export const PLATFORM_NAME = 'GREEAirConditioner';
  * This must match the name of your plugin as defined the package.json
  */
 export const PLUGIN_NAME = 'homebridge-gree-ac';
+
+export const OVERRIDE_DEFAULT_SWING = {
+  never: 0,
+  powerOn: 1,
+  always: 2,
+};
 
 export interface DeviceConfig {
   name?: string;
@@ -19,6 +26,8 @@ export interface DeviceConfig {
   xFanEnabled: boolean;
   temperatureSensor: string;
   disabled?: boolean;
+  defaultVerticalSwing?: number;
+  overrideDefaultVerticalSwing?: number;
 }
 
 export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
@@ -29,6 +38,8 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   maximumTargetTemperature: 30,
   xFanEnabled: true,
   temperatureSensor: 'disabled',
+  defaultVerticalSwing: commands.swingVertical.value.default,
+  overrideDefaultVerticalSwing: OVERRIDE_DEFAULT_SWING.never,
 };
 
 export const UDP_SCAN_PORT = 7000;

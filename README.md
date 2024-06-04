@@ -23,7 +23,7 @@ xFan function is also supported, but it works automatically if enabled in Homebr
 
 Temperature display units of the physical device can be controlled using the Home App. (Configuration settings are required to be specified always in Degrees Celsius, independently from the display units.)
 
-Vertical swing mode can be turned on/off, but special swing settings can't be controlled using the Home App.
+Vertical swing mode can be turned on/off, but special swing settings can't be controlled using the Home App. If device default vertical swing position is not acceptable in disabled swing mode it can be overridden to a pre selected position by configuration settings. (Only default position is overridden when this feature is enabled. Other positions selected by remote control are kept and not modified by Home App.)
 
 This plugin is designed to be as simple and clear as possible and supports primarily the functions of the Home App's Heater Cooler accessory.
 
@@ -97,8 +97,8 @@ _Only the relevant part of the configuration file is displayed:_
             "platform": "GREEAirConditioner",
             "port": 7002,
             "scanAddress": "192.168.1.255",
-            "scanCount": 10,
-            "scanTimeout": 5,
+            "scanCount": 5,
+            "scanTimeout": 10,
             "devices": [
                 {
                     "mac": "502cc6000000",
@@ -111,6 +111,8 @@ _Only the relevant part of the configuration file is displayed:_
                     "maximumTargetTemperature": 30,
                     "xFanEnabled": true,
                     "temperatureSensor": "disabled",
+                    "overrideDefaultVerticalSwing": 2,
+                    "defaultVerticalSwing": 0,
                     "disabled": false
                 }
             ]
@@ -119,7 +121,7 @@ _Only the relevant part of the configuration file is displayed:_
 ```
 * name - Unique name of the platform plugin
 * platform - **GREEAirConditioner** (fixed name, it identifies the plugin)
-* port - free UDP port (homebridge will use this port for network communication; it is recommended to select a port which is not used and the next 256 ports are also available because devices will be bound to a separate port based on the last part of the device's IPv4 address and the port specified in the configuration)
+* port - free UDP port (homebridge will use this port for network communication; it is recommended to select a port which is not used and the next 256 ports are also available because devices will be bound to a separate port based on the last part of the device's IPv4 address and the port specified in the configuration; valid values: 1025 - 65279)
 * scanAddress - local network broadcast address (some network knowledge is required to determine this address; in many cases its default value is 192.168.1.255)
 * scanCount - number of retries for locating devices on the network (minimum 3 retries have to be specified)
 * scanTimeout - time period in seconds between device query retries
@@ -134,6 +136,8 @@ _Only the relevant part of the configuration file is displayed:_
 * maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in Degrees Celsius, valid values: 16-30)
 * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
 * temperatureSensor - control additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
+* overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never = turn off override, let device use default / After power on = override default position on each power on / After power on and swing disable = override default position on each power on and each time when swing is switched to disabled)
+* defaultVerticalSwing - specify the vertical swing position to be used instead of device default when overriding is enabled (Device default = use device default, same position as used by device by default without overriding / one of the following 5 positions: fixed Highest, fixed Higher, fixed Middle, fixed Lower, fixed Lowest)
 * disabled - set to true if you do not want to control this device in the Home App (old devices can be removed using this parameter)
 
 ![Homebridge UI](./uiconfig.jpg)

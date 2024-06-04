@@ -125,6 +125,74 @@
             },
             "disabled": {
               "type": "boolean"
+            },
+            "overrideDefaultVerticalSwing": {
+              "type": "integer",
+              "required": true,
+              "default": 0,
+              "oneOf": [
+                {
+                  "title": "Never",
+                  "enum": [
+                    0
+                  ]
+                },
+                {
+                  "title": "After power on",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "title": "After power on and swing disable",
+                  "enum": [
+                    2
+                  ]
+                }
+              ]
+            },
+            "defaultVerticalSwing": {
+              "type": "integer",
+              "required": true,
+              "default": 0,
+              "oneOf": [
+                {
+                  "title": "Device default",
+                  "enum": [
+                    0
+                  ]
+                },
+                {
+                  "title": "fixed Highest",
+                  "enum": [
+                    2
+                  ]
+                },
+                {
+                  "title": "fixed Higher",
+                  "enum": [
+                    3
+                  ]
+                },
+                {
+                  "title": "fixed Middle",
+                  "enum": [
+                    4
+                  ]
+                },
+                {
+                  "title": "fixed Lower",
+                  "enum": [
+                    5
+                  ]
+                },
+                {
+                  "title": "fixed Lowest",
+                  "enum": [
+                    6
+                  ]
+                }
+              ]
             }
           }
         }
@@ -267,6 +335,24 @@
               "description": "Additional temperature sensor in Home App",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].overrideDefaultVerticalSwing",
+              "flex": "1 1 50%",
+              "title": "Override default vertical position:",
+              "description": "When to override vertical swing position",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].defaultVerticalSwing",
+              "flex": "1 1 50%",
+              "title": "Vertical position:",
+              "description": "Default vertical swing position to be used istead of what device considers a default",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].overrideDefaultVerticalSwing !== 0);"
               }
             }
           ]
