@@ -50,6 +50,7 @@ It is highly recommended to use static IP addresses for connected devices. Using
 > * GREE GEH12AA-K6DNA1A
 > 
 > If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported.
+>
 > If you get _"Device not bound:..."_ warning message then your device is not supported.
 
 ## Known limitations
@@ -64,7 +65,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed.
-* Homebridge and AC unit on different subnet is a not supported configuration.
+* Homebridge and AC unit on different subnets is a not supported configuration.
 
 ## Installation instructions
 
@@ -136,8 +137,8 @@ _Only the relevant part of the configuration file is displayed:_
 * maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in Degrees Celsius, valid values: 16-30)
 * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
 * temperatureSensor - control additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
-* overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never = turn off override, let device use default / After power on = override default position on each power on / After power on and swing disable = override default position on each power on and each time when swing is switched to disabled)
-* defaultVerticalSwing - specify the vertical swing position to be used instead of device default when overriding is enabled (Device default = use device default, same position as used by device by default without overriding / one of the following 5 positions: fixed Highest, fixed Higher, fixed Middle, fixed Lower, fixed Lowest)
+* overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never (0) = turn off override, let device use default / After power on (1) = override default position on each power on / After power on and swing disable (2) = override default position on each power on and each time when swing is switched to disabled)
+* defaultVerticalSwing - specify the vertical swing position to be used instead of device default when overriding is enabled (Device default (0) = use device default, same position as used by device by default without overriding / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6))
 * disabled - set to true if you do not want to control this device in the Home App (old devices can be removed using this parameter)
 
 ![Homebridge UI](./uiconfig.jpg)
