@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "GREE Air Conditioner",
   "name": "homebridge-gree-ac",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "Control GREE Air Conditioners from Homebridge",
   "license": "Apache-2.0",
   "repository": {

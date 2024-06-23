@@ -9,15 +9,15 @@
 
 # Homebridge GREE Air Conditioner Platform Plugin
 
-[Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home app](https://www.apple.com/home-app/). (Make GREE Air Conditioner HomeKit compatible.)
+[Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home App](https://www.apple.com/home-app/). (Make GREE Air Conditioner HomeKit compatible.)
 
 You can add all of your GREE Air Conditioner devices to the Home App by specifying the network broadcast address, and Homebridge will find all connected devices. Each device appears in the Home App as a Heater Cooler device. It is also possible to add a separate Termperature Sensor (if temperature sensor is supported by the physical device). This allows to define automations (e.g. turn on) based on current temperature in the room. Be careful, if the device does not support internal temperature sensor but is added as a separate accessory, Home App will display the target temperature not the measured one. Child accessory does not appear in Home App if physical sensor is not available in the AC unit.
 
-Quiet / Auto / Powerful mode is supported by the fan speed control. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High)
+Quiet / Auto / Powerful mode is supported by the fan speed control. Zero means off. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High)
 
-** these values are supported only on 5-speed units
+** these values are supported only on 5-speed models
 
-It is recommended to add all devices to the Homebridge configuration, so that you can control all their parameters. If you don't want to control all of the devices in Home App, then you need to add to the configuration and disable the ones you don't need. Devices are identified by MAC Address (Serial Number). It can be queried using the official [GREE+ mobile app](https://apps.apple.com/us/app/gree/id1167857672). (The app is required to connect the devices to the local WiFi network for the first time.)
+You have to add all devices to the Homebridge configuration, so that you can control all their parameters. If you don't want to control all of the devices in Home App, then you need to add to the configuration and disable the ones you don't need. Devices are identified by MAC Address (Serial Number). It can be queried using the official [GREE+ mobile app](https://apps.apple.com/us/app/gree/id1167857672). (The app is required to connect the devices to the local WiFi network for the first time.)
 
 xFan function is also supported, but it works automatically if enabled in Homebridge configuration. If xFan is enabled for the device, it is automatically turned on when you select a supported operating mode in Home App. If xFan is disabled, the Home App will not modify its actual setting in any case.
 
@@ -38,20 +38,15 @@ It is highly recommended to use static IP addresses for connected devices. Using
 
 ## Supported devices
 
-* GREE Air Conditioners with WiFi support (hardware version v1.x.x)
+* GREE Air Conditioners with WiFi support (hardware version v1.x.x and v2.x.x)
 * May work with other GREE compatible AC units (e.g. Sinclair)
     * Successfully tested with Sinclair SIH-13BITW
-> _*** Not all GREE devices are supported ***_
-> 
-> There are some newer GREE devices which use a different network protocol (e.g. hardware version v2.0.0 devices). They are not supported. Known unsupported devices:
-> * GREE GRJ532-J14 Wifi Modul
-> * GREE CS532AE Wifi Modul
-> * GREE GWH14QD-K3NNB4D/I
-> * GREE GEH12AA-K6DNA1A
-> 
+ 
 > If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported.
 >
 > If you get _"Device not bound:..."_ warning message then your device is not supported.
+
+By default this plugin tries to auto detect the network protocol encryption version. If not the right version is selected there can get errors and the AC device will not correctly work. It is possible to force a network protocol encryption version in configuration file. If auto detection does not work then it is recommended to try all possible values to check if the device is compatible or not.
 
 ## Known limitations
 
@@ -66,6 +61,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed.
 * Homebridge and AC unit on different subnets is a not supported configuration.
+* Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
 
 ## Installation instructions
 
@@ -106,13 +102,14 @@ _Only the relevant part of the configuration file is displayed:_
                     "name": "Living room AC",
                     "model": "Pulse 3.2kW GWH12AGB-K6DNA1A/I",
                     "speedSteps": 5,
+                    "encryptionVersion": 0,
                     "statusUpdateInterval": 10,
                     "sensorOffset": 40,
                     "minimumTargetTemperature": 16,
                     "maximumTargetTemperature": 30,
                     "xFanEnabled": true,
                     "temperatureSensor": "disabled",
-                    "overrideDefaultVerticalSwing": 2,
+                    "overrideDefaultVerticalSwing": 0,
                     "defaultVerticalSwing": 0,
                     "disabled": false
                 }
@@ -131,10 +128,11 @@ _Only the relevant part of the configuration file is displayed:_
 * name - custom name of the device (optional)
 * model - model name, information only (optional)
 * speedSteps - fan speed steps of the unit (valid values are: 3 and 5)
+* encryptionVersion - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication
 * statusUpdateInterval - device status will be refreshed based on this interval (in seconds)
-* sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in Degrees Celsius)
-* minimumTargetTemperature - minimum target temperature accepted by the device (default is 16 °C, must be specified in Degrees Celsius, valid values: 16-30)
-* maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in Degrees Celsius, valid values: 16-30)
+* sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in °C)
+* minimumTargetTemperature - minimum target temperature accepted by the device (default is 16 °C, must be specified in °C, valid values: 16-30)
+* maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in °C, valid values: 16-30)
 * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
 * temperatureSensor - control additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
 * overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never (0) = turn off override, let device use default / After power on (1) = override default position on each power on / After power on and swing disable (2) = override default position on each power on and each time when swing is switched to disabled)
@@ -178,23 +176,38 @@ Some settings are initialized by Home App only once (when enabling the device). 
 * name
 * model
 * speedSteps
-* minimumTargetTemperature
-* maximumTargetTemperature
+
+All other settings are applied when starting up Homebridge. You have to restart Homebridge to apply changes in configuration settings.
 
 ### Temperature display units
 
-Home App allows to set the device temperature display units but it is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device.
+Home App allows to set the device temperature display units but it is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device (e.g. iPhone).
 
 ### Temperature measurement
 
-Temperature measurement is not perfect if using the built-in sensor. It is highly affected by current operation and can differ from actual temperature of other places in the room. It is recommended to use a sperarate temperature sensor and place it not too close to the AC unit.
+Temperature measurement is not perfect if using the built-in sensor. It is highly affected by current operation and can differ from actual temperature of other places in the room. It is recommended to use a sperarate temperature sensor and place it not too close to the AC unit if you plan to set up automations based on temperature values.
+
+### Invalid room temperature
+
+Some AC units have a built-in temperature sensor but the actual room temperature is not displayed in Home App. This is an AC firmware problem. Older firware versions do not report temperature values at all and there are some firmware versions which report a fixed value (e.g. zero) instead of the measured one. This plugin replaces the missing value and the fixed zero value by the desired target temperature. To get the correct measured temperature please try to upgrade or downgrade the AC firmware.
+
+### Fan speed
+
+Fan speed is adjustable on the Heater Cooler's settings page in Home App. There is a gear icon in the buttom right corner of the Heater Cooler page if it was opened from the Home App (gear icon is missing if opened from control center or home view of control center). This gear icon can be used to access settings (and fan speed).
+
+![Home App Heater Cooler settings](./ha_settings.jpg)
+
+Slider description: Zero means off. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High)
+
+** these values are supported only on 5-speed models
 
 ## Refs & Credits
 
-Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https://github.com/kongkx) for GREE network protocol information and code samples.
+Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https://github.com/kongkx) for GREE network protocol information and code samples. Thank you [mateuszm7](https://github.com/mateuszm7) and [zivanek](https://github.com/zivanek) for helping to implement the version 2 network protocol.
 
 - [homebridge-gree-air-conditioner](https://github.com/kongkx/homebridge-gree-air-conditioner)
 - [gree-remote](https://github.com/tomikaa87/gree-remote)
 - [homebridge-gree-heatercooler](https://github.com/ddenisyuk/homebridge-gree-heatercooler)
 - [Homebridge API](https://developers.homebridge.io/)
 - [Homebridge Platform Plugin Template](https://github.com/homebridge/homebridge-plugin-template)
+- [HomeAssistant-GreeClimateComponent](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent)

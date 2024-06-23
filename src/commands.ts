@@ -105,7 +105,12 @@ const commands = {
   },
   energySaving: {
     code: 'SvSt',
+    value: {
+      off: 0,
+      on: 1,
+    },
   },
+  // sleepMode and sleep should be syncronized (to turn on set both to 1 / to turn off set both to 0)
   sleepMode: {
     code: 'SwhSlp',
     value: {
@@ -113,8 +118,36 @@ const commands = {
       on: 1,
     },
   },
+  sleep: {
+    code: 'SlpMod',
+    value: {
+      off: 0,
+      on: 1,
+    },
+  },
   time: {
     code: 'time',
+  },
+  air: {
+    code: 'Air',
+    value: {
+      off: 0,
+      on: 1,
+    },
+  },
+  health: {
+    code: 'Health',
+    value: {
+      off: 0,
+      on: 1,
+    },
+  },
+  nofrost: { // nofrost on = heating to 8 ℃
+    code: 'StHt',
+    value: {
+      off: 0,
+      on: 1,
+    },
   },
 };
 

@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import crypto from './crypto';
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic, Categories } from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING } from './settings';
+import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION } from './settings';
 import { GreeAirConditioner } from './platformAccessory';
 import { GreeAirConditionerTS } from './tsAccessory';
 import commands from './commands';
@@ -114,24 +114,41 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   }
 
   handleMessage = (msg, rinfo) => {
-    this.log.debug('handleMessage', msg.toString());
+    this.log.debug('handleMessage -> %s', msg.toString());
     try {
       const message = JSON.parse(msg.toString());
       if (message.i !== 1 || message.t !== 'pack') {
-        this.log.debug('handleMessage - unknown response');
+        this.log.debug('handleMessage - unknown response: %j', message);
         return;
       }
-      const pack = crypto.decrypt(message.pack);
+      let pack, encryptionVersion:number;
+      if (message.tag === undefined) {
+        this.log.debug('handleMessage -> Encryption version: 1');
+        pack = crypto.decrypt_v1(message.pack);
+        encryptionVersion = 1;
+      } else {
+        this.log.debug('handleMessage -> Encryption version: 2');
+        pack = crypto.decrypt_v2(message.pack, message.tag);
+        encryptionVersion = 2;
+      }
       this.log.debug('handleMessage - Package -> %j', pack);
+      if (encryptionVersion === 1 && pack.t === 'dev' && pack.ver && pack.ver.toString().startsWith('V2.')) {
+        // first V2 version responded to scan command with V1 encryption but binding requires V2 encryption
+        encryptionVersion = 2;
+      }
       if (pack.t === 'dev') {
         this.registerDevice({
           ...pack,
           address: rinfo.address,
           port: rinfo.port,
+          encryptionVersion,
         });
+      } else {
+        this.log.debug('handleMessage - unknown package: %j', pack);
       }
     } catch (err) {
-      this.log.error('handleMessage', err);
+      const msg = (err as Error).message;
+      this.log.error('handleMessage - Error:', msg);
     }
   };
 
@@ -149,24 +166,31 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       ...(devcfg.maximumTargetTemperature && (devcfg.maximumTargetTemperature < DEFAULT_DEVICE_CONFIG.minimumTargetTemperature ||
         devcfg.maximumTargetTemperature > DEFAULT_DEVICE_CONFIG.maximumTargetTemperature) ?
         { maximumTargetTemperature: DEFAULT_DEVICE_CONFIG.maximumTargetTemperature } : {}),
-      ...((devcfg.defaultVerticalSwing && [commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
+      ...((devcfg.defaultVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
         commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
         commands.swingVertical.value.fixedLowest].includes(devcfg.defaultVerticalSwing)) ?
-        { defaultVerticalSwing: devcfg.defaultVerticalSwing } : {}),
-      ...((devcfg.overrideDefaultVerticalSwing && Object.entries(OVERRIDE_DEFAULT_SWING).includes(devcfg.overrideDefaultVerticalSwing)) ?
-        { overrideDefaultVerticalSwing: devcfg.overrideDefaultVerticalSwing } : {}),
+        { defaultVerticalSwing: DEFAULT_DEVICE_CONFIG.defaultVerticalSwing } : {}),
+      ...((devcfg.overrideDefaultVerticalSwing && !Object.values(OVERRIDE_DEFAULT_SWING).includes(devcfg.overrideDefaultVerticalSwing)) ?
+        { overrideDefaultVerticalSwing: DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing } : {}),
+      ...((devcfg.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(devcfg.encryptionVersion)) ?
+        { encryptionVersion: DEFAULT_DEVICE_CONFIG.encryptionVersion } : {}),
     };
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {
         deviceConfig[key] = value;
       }
     });
+    // force encryption version if set in config
+    if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {
+      deviceInfo.encryptionVersion = deviceConfig.encryptionVersion;
+      this.log.debug(`Accessory ${deviceInfo.mac} encryption version forced:`, deviceInfo.encryptionVersion);
+    }
     let accessory = this.devices[deviceInfo.mac];
     let accessory_ts = this.devices[deviceInfo.mac + '_ts'];
 
     if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig.mac)) {
       if (!this.skippedDevices[deviceInfo.mac]) {
-        this.log.info(`accessory ${deviceInfo.mac} skipped`);
+        this.log.info(`Accessory ${deviceInfo.mac} skipped`);
         this.skippedDevices[deviceInfo.mac] = true;
       }
       if (accessory) {
@@ -235,7 +259,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.socket.send(message, 0, message.length, UDP_SCAN_PORT, this.config.scanAddress, (error) => {
       this.log.debug(`Broadcast '${message}' ${this.config.scanAddress}:${UDP_SCAN_PORT}`);
       if (error) {
-        this.log.error('broadcastScan', error.message);
+        this.log.error('broadcastScan - Error:', error.message);
       }
     });
   }

@@ -131,7 +131,7 @@ export class GreeAirConditioner {
     this.bound = false;
     this.socket = dgram.createSocket({type: 'udp4', reuseAddr: true});
     this.socket.on('error', (err) => {
-      this.platform.log.error(`[${this.getDeviceLabel()}] Network`, err.message);
+      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Error:`, err.message);
     });
     this.socket.on('message', this.handleMessage);
     this.socket.bind(this.port + parseInt(this.accessory.context.device.address.split('.')[3]) + 1,
@@ -896,12 +896,25 @@ export class GreeAirConditioner {
   // device communication functions
   handleMessage = (msg, rinfo) => {
     if (this.accessory.context.device.address === rinfo.address) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage -> %s`, msg.toString());
+      this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage -> Encryption version: %i`,
+        this.accessory.context.device.encryptionVersion);
       const message = JSON.parse(msg.toString());
-      this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage -> %j`, message);
-      const pack = crypto.decrypt(
-        message.pack,
-        message.i === 1 ? undefined : this.key,
-      );
+      if (!message.pack) {
+        this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Unknown message: %j`, message);
+        this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: handleMessage - Unknown response from device`);
+        return;
+      }
+      let pack;
+      if (this.accessory.context.device.encryptionVersion === 1) {
+        pack = crypto.decrypt_v1(message.pack, message.i === 1 ? undefined : this.key);
+      } else if (this.accessory.context.device.encryptionVersion === 2 && message.tag !== undefined) {
+        pack = crypto.decrypt_v2(message.pack, message.tag, message.i === 1 ? undefined : this.key);
+      } else {
+        this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Unknown message: %j`, message);
+        this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: handleMessage - Unknown response from device`);
+        return;
+      }
       this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Package -> %j`, pack);
       switch (pack.t) {
         case 'bindok': // package type is binding confirmation
@@ -921,7 +934,9 @@ export class GreeAirConditioner {
         case 'dat': // package type is device status
           if (this.bound){
             pack.cols.forEach((col, i) => {
-              this.status[col] = pack.dat[i];
+              if (!(col === commands.temperature.code && i === 0)) { // temperature value 0 should be ignored (means: no sensor data)
+                this.status[col] = pack.dat[i];
+              }
             });
             this.platform.log.debug(`[${this.getDeviceLabel()}] Device status -> %j`, this.status);
             if (!(pack.cols as [string]).includes(commands.temperature.code) &&
@@ -953,20 +968,45 @@ export class GreeAirConditioner {
             }
           }
           break;
+        default:
+          this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Unknown message: %j`, message);
+          this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: handleMessage - Unknown response from device`);
+          break;
       }
     }
   };
 
   sendMessage(message) {
     this.platform.log.debug(`[${this.getDeviceLabel()}] sendMessage - Package -> %j`, message);
-    const pack = crypto.encrypt(message, this.key);
-    const payload = {
-      cid: 'app',
-      i: this.key === undefined ? 1 : 0,
-      t: 'pack',
-      uid: 0,
+    this.platform.log.debug(`[${this.getDeviceLabel()}] sendMessage -> Encryption version: %i`,
+      this.accessory.context.device.encryptionVersion);
+    let pack:string, tag:string;
+    if (this.accessory.context.device.encryptionVersion === 1) {
+      pack = crypto.encrypt_v1(message, this.key);
+      tag = '';
+    } else if (this.accessory.context.device.encryptionVersion === 2) {
+      const encrypted = crypto.encrypt_v2(message, this.key);
+      pack = encrypted.pack;
+      tag = encrypted.tag;
+    } else {
+      this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: sendMessage -> Unsupported encryption version`);
+      return;
+    }
+    const payload = (tag === '') ? {
       tcid: this.accessory.context.device.mac,
+      uid: 0,
+      t: 'pack',
       pack,
+      i: this.key === undefined ? 1 : 0,
+      cid: 'app',
+    } : {
+      tcid: this.accessory.context.device.mac,
+      uid: 0,
+      t: 'pack',
+      pack,
+      i: this.key === undefined ? 1 : 0,
+      tag,
+      cid: 'app',
     };
     try {
       const msg = JSON.stringify(payload);
@@ -977,7 +1017,7 @@ export class GreeAirConditioner {
         this.accessory.context.device.address,
       );
     } catch (err) {
-      this.platform.log.error('sendMessage', (err as Error).message);
+      this.platform.log.error(`[${this.getDeviceLabel()}] sendMessage - Error:`, (err as Error).message);
     }
   }
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0] - 2024-06-23
+
+### New features
+
+- New encryption protocol added to support latest AC devices (e.g. GREE CS532AE Wifi Modul, GREE GRJ532-J14 Wifi Modul, GREE GEH12AA-K6DNA1A, GREE GWH14QD-K3NNB4D/I, etc.)
+- New configuration parameter added to force network encryption version
+
+### Fixes
+
+- Fixed "error:1C80006B:Provider routines::wrong final block length" error
+- Fixed incorrect display of current temperature on devices without temperature sensor (on devices without sensor the target temperature is displayed in Home App)
+  Some AC firmware versions do not report the measured temperature but the device has a built-in sensor. They are handled as devices without sensor.
+
 ## [2.0.2] - 2024-06-04
 
 ### New features

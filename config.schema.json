@@ -193,6 +193,31 @@
                   ]
                 }
               ]
+            },
+            "encryptionVersion" : {
+              "type": "integer",
+              "required": true,
+              "default": 0,
+              "oneOf": [
+                {
+                  "title": "Auto",
+                  "enum": [
+                    0
+                  ]
+                },
+                {
+                  "title": "v1",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "title": "v2",
+                  "enum": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -293,10 +318,10 @@
               }
             },
             {
-              "key": "devices[].sensorOffset",
+              "key": "devices[].encryptionVersion",
               "flex": "1 1 50%",
-              "title": "Temperature offset:",
-              "description": "Temperature sensor calibration (in Degrees Celsius)",
+              "title": "Network protocol encryption version:",
+              "description": "Leave this on Auto. If Auto doesn't work then set to the desired version.",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -305,7 +330,7 @@
               "key": "devices[].minimumTargetTemperature",
               "flex": "1 1 50%",
               "title": "Minimum target temperature:",
-              "description": "Minimum target temperature (in Degrees Celsius)",
+              "description": "Minimum target temperature (in ℃)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -314,7 +339,16 @@
               "key": "devices[].maximumTargetTemperature",
               "flex": "1 1 50%",
               "title": "Maximum target temperature:",
-              "description": "Maximum target temperature (in Degrees Celsius)",
+              "description": "Maximum target temperature (in ℃)",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].sensorOffset",
+              "flex": "1 1 50%",
+              "title": "Temperature offset:",
+              "description": "Temperature sensor calibration (in ℃)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -333,6 +367,12 @@
               "flex": "1 1 50%",
               "title": "Temperature sensor:",
               "description": "Additional temperature sensor in Home App",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "flex": "1 1 50%",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }

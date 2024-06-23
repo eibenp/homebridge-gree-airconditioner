@@ -15,6 +15,12 @@ export const OVERRIDE_DEFAULT_SWING = {
   always: 2,
 };
 
+export const ENCRYPTION_VERSION = {
+  auto: 0,
+  v1: 1,
+  v2: 2,
+};
+
 export interface DeviceConfig {
   name?: string;
   model?: string;
@@ -28,6 +34,7 @@ export interface DeviceConfig {
   disabled?: boolean;
   defaultVerticalSwing?: number;
   overrideDefaultVerticalSwing?: number;
+  encryptionVersion?: number;
 }
 
 export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
@@ -40,6 +47,7 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   temperatureSensor: 'disabled',
   defaultVerticalSwing: commands.swingVertical.value.default,
   overrideDefaultVerticalSwing: OVERRIDE_DEFAULT_SWING.never,
+  encryptionVersion: ENCRYPTION_VERSION.auto,
 };
 
 export const UDP_SCAN_PORT = 7000;
