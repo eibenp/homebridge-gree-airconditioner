@@ -116,7 +116,13 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   handleMessage = (msg, rinfo) => {
     this.log.debug('handleMessage -> %s', msg.toString());
     try {
-      const message = JSON.parse(msg.toString());
+      let message;
+      try{
+        message = JSON.parse(msg.toString());
+      } catch (e){
+        this.log.debug('handleMessage - unknown message - BASE64 encoded message: %s', Buffer.from(msg).toString('base64'));
+        return;
+      }
       if (message.i !== 1 || message.t !== 'pack') {
         this.log.debug('handleMessage - unknown response: %j', message);
         return;

@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.1] - 2024-06-25
+
+**New (v2) network encryption protocol supported since v2.1.0**
+
+- Updated dependencies (homebridge-config-ui-x 4.56.3 or later required)
+
+### Fixes
+
+- Do not show error on unknown network packets received from non GREE devices
+
 ## [2.1.0] - 2024-06-23
 
 ### New features
