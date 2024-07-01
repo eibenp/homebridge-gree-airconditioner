@@ -120,11 +120,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       try{
         message = JSON.parse(msg.toString());
       } catch (e){
-        this.log.debug('handleMessage - unknown message - BASE64 encoded message: %s', Buffer.from(msg).toString('base64'));
+        this.log.debug('handleMessage - unknown message from %s - BASE64 encoded message: %s', rinfo.address.toString(),
+          Buffer.from(msg).toString('base64'));
         return;
       }
       if (message.i !== 1 || message.t !== 'pack') {
-        this.log.debug('handleMessage - unknown response: %j', message);
+        this.log.debug('handleMessage - unknown response from %s: %j', rinfo.address.toString(), message);
         return;
       }
       let pack, encryptionVersion:number;
@@ -150,11 +151,11 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           encryptionVersion,
         });
       } else {
-        this.log.debug('handleMessage - unknown package: %j', pack);
+        this.log.debug('handleMessage - unknown package from %s: %j', rinfo.address.toString(), pack);
       }
     } catch (err) {
       const msg = (err as Error).message;
-      this.log.error('handleMessage - Error:', msg);
+      this.log.error('handleMessage (%s) - Error: %s', rinfo.address.toString(), msg);
     }
   };
 
