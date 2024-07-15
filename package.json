@@ -20,7 +20,7 @@
   "scripts": {
     "lint": "eslint src/**.ts --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
-    "build": "genversion --esm src/version.ts && rimraf ./dist && tsc",
+    "build": "genversion --esm -s src/version.ts && rimraf ./dist && tsc",
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
