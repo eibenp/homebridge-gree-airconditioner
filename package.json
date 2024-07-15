@@ -20,7 +20,7 @@
   "scripts": {
     "lint": "eslint src/**.ts --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
-    "build": "rimraf ./dist && tsc",
+    "build": "genversion --esm src/version.ts && rimraf ./dist && tsc",
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
@@ -38,6 +38,7 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.45.0",
+    "genversion": "^3.2.0",
     "homebridge": "^1.8.0",
     "nodemon": "^2.0.22",
     "rimraf": "^3.0.2",

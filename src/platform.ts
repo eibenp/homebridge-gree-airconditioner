@@ -1,11 +1,14 @@
 import dgram from 'dgram';
 import crypto from './crypto';
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic, Categories } from 'homebridge';
+import { networkInterfaces } from 'os';
 
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION } from './settings';
 import { GreeAirConditioner } from './platformAccessory';
 import { GreeAirConditionerTS } from './tsAccessory';
 import commands from './commands';
+import { version } from './version';
+//import { AddressInfo } from 'net';
 
 /**
  * HomebridgePlatform
@@ -23,6 +26,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   private socket: dgram.Socket;
   private timer: NodeJS.Timeout | undefined;
   private scanCount: number;
+  private pluginAddresses: Record<string, string>;
 
   constructor(
     public readonly log: Logger,
@@ -34,6 +38,8 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.initializedDevices = {};
     this.skippedDevices = {};
     this.scanCount = 0;
+    this.pluginAddresses = this.getNetworkAddresses();
+    this.log.debug('Plugin addresses: ', this.pluginAddresses);
     this.log.debug('Finished initializing platform:', this.config.name);
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -72,44 +78,46 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * Accessories must only be registered once, previously created accessories
    * must not be registered again to prevent "duplicate UUID" errors.
    */
-  discoverDevices() {
-    if (this.config.port !== undefined && typeof this.config.port === 'number' && this.config.port === this.config.port &&
-      this.config.port >= 0 && this.config.port <= 65279) {
-      this.socket.bind(this.config.port, () => {
-        this.log.info(`UDP server bind to port ${this.config.port}`);
-        this.socket.setBroadcast(true);
-        this.timer = setInterval(() => {
-          this.scanCount += 1;
-          if (this.scanCount > this.config.scanCount && this.timer) {
-            this.log.info('Scan finished.');
-            clearInterval(this.timer);
-            this.socket.close();
-            // remove accessories not found on network or not responsing to bind request
-            Object.entries(this.devices).forEach(([key, value]) => {
-              if (value && !value.context.bound && this.initializedDevices[value.UUID] &&
-                (value.context.deviceType === 'HeaterCooler' || value.context.deviceType === undefined)) {
-                this.log.warn('Warning: Device not bound: %s [%s -- %s:%s]', value.context.device.mac, value.displayName,
-                  value.context.device.address, value.context.device.port);
-                if (value.context.accessory_ts) {
-                  this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value.context.accessory_ts]);
-                  delete this.initializedDevices[value.context.accessory_ts.UUID];
-                  delete this.devices[value.context.accessory_ts.context.device.mac + '_ts'];
-                }
-                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value]);
-                delete this.initializedDevices[value.UUID];
-              }
-              if (value && !this.initializedDevices[value.UUID]) {
-                this.log.debug('Cleanup -> Remove', value.displayName, key, value.UUID);
-                delete this.devices[key];
-              }
-            });
-          } else {
-            this.broadcastScan();
+  bindCallback() {
+    this.log.info(`${PLATFORM_NAME} (${PLUGIN_NAME}) v%s is running on UDP port %d`, version, this.socket.address().port);
+    this.socket.setBroadcast(true);
+    this.timer = setInterval(() => {
+      this.scanCount += 1;
+      if (this.scanCount > this.config.scanCount && this.timer) {
+        this.log.info('Scan finished.');
+        clearInterval(this.timer);
+        this.socket.close();
+        // remove accessories not found on network or not responsing to bind request
+        Object.entries(this.devices).forEach(([key, value]) => {
+          if (value && !value.context.bound && this.initializedDevices[value.UUID] &&
+            (value.context.deviceType === 'HeaterCooler' || value.context.deviceType === undefined)) {
+            this.log.warn('Warning: Device not bound: %s [%s -- %s:%s]', value.context.device.mac, value.displayName,
+              value.context.device.address, value.context.device.port);
+            if (value.context.accessory_ts) {
+              this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value.context.accessory_ts]);
+              delete this.initializedDevices[value.context.accessory_ts.UUID];
+              delete this.devices[value.context.accessory_ts.context.device.mac + '_ts'];
+            }
+            this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value]);
+            delete this.initializedDevices[value.UUID];
           }
-        }, this.config.scanTimeout * 1000); // scanTimeout in seconds
-      });
+          if (value && !this.initializedDevices[value.UUID]) {
+            this.log.debug('Cleanup -> Remove', value.displayName, key, value.UUID);
+            delete this.devices[key];
+          }
+        });
+      } else {
+        this.broadcastScan();
+      }
+    }, this.config.scanTimeout * 1000); // scanTimeout in seconds
+  }
+
+  discoverDevices() {
+    if (this.config.port === undefined || (this.config.port !== undefined && typeof this.config.port === 'number' &&
+      this.config.port === this.config.port && this.config.port >= 0 && this.config.port <= 65279)) {
+      this.socket.bind(this.config.port, undefined, () => this.bindCallback());
     } else {
-      this.log.warn('Warning: Port is missing or misconfigured (Valid port values: 1025~65279)');
+      this.log.error('Error: Port is misconfigured (Valid port values: 1025~65279 or leave port empty to auto select)');
     }
   }
 
@@ -263,11 +271,44 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
 
   broadcastScan() {
     const message = Buffer.from(JSON.stringify({ t: 'scan' }));
-    this.socket.send(message, 0, message.length, UDP_SCAN_PORT, this.config.scanAddress, (error) => {
-      this.log.debug(`Broadcast '${message}' ${this.config.scanAddress}:${UDP_SCAN_PORT}`);
-      if (error) {
-        this.log.error('broadcastScan - Error:', error.message);
-      }
+    Object.entries(this.pluginAddresses).forEach((value) => {
+      this.socket.send(message, 0, message.length, UDP_SCAN_PORT, value[0], (error) => {
+        this.log.debug(`Broadcast '${message}' ${value[0]}:${UDP_SCAN_PORT}`);
+        if (error) {
+          this.log.error('broadcastScan - Error:', error.message);
+        }
+      });
     });
+  }
+
+  getNetworkAddresses() {
+    this.log.debug('Checking network interfaces');
+    const pluginAddresses = {};
+    const allInterfaces = networkInterfaces();
+    for (const name of Object.keys(allInterfaces)) {
+      const nets = allInterfaces[name];
+      if (nets) {
+        for (const iface of nets) {
+          // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+          const familyV4Value = typeof iface.family === 'string' ? 'IPv4' : 4;
+          if (iface.family === familyV4Value && !iface.internal) {
+            const addrParts = iface.address.split('.');
+            const netmaskParts = iface.netmask.split('.');
+            const broadcast = addrParts.map((e, i) => ((~Number(netmaskParts[i]) & 0xFF) | Number(e)).toString()).join('.');
+            this.log.debug('Interface: \'%s\' Address: %s Netmask: %s Broadcast: %s', name, iface.address, iface.netmask, broadcast);
+            pluginAddresses[broadcast] = pluginAddresses[broadcast] === undefined ? iface.address :
+              pluginAddresses[broadcast] + ';' + iface.address;
+          }
+        }
+      }
+    }
+    // Sort IP addresses for consistent comparison
+    for (const bcast of Object.keys(pluginAddresses)) {
+      // Keep only unique IPs
+      const ips = Array.from(new Set(pluginAddresses[bcast].split(';') as string[]));
+      ips.sort((a, b) => (a < b ? -1 : 1));
+      pluginAddresses[bcast] = ips.join(';');
+    }
+    return pluginAddresses;
   }
 }

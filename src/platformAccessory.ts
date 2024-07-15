@@ -134,8 +134,9 @@ export class GreeAirConditioner {
       this.platform.log.error(`[${this.getDeviceLabel()}] Network - Error:`, err.message);
     });
     this.socket.on('message', this.handleMessage);
-    this.socket.bind(this.port + parseInt(this.accessory.context.device.address.split('.')[3]) + 1,
-      '0.0.0.0', () => {
+    this.socket.bind(this.port !== undefined ? (this.port + parseInt(this.accessory.context.device.address.split('.')[3]) + 1) : undefined,
+      undefined, () => {
+        this.platform.log.debug(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
         this.socket.setBroadcast(false);
         this.sendBindRequest();
       });

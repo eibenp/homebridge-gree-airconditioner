@@ -12,8 +12,7 @@
       },
       "port": {
         "type": "integer",
-        "required": true,
-        "default": 7002,
+        "required": false,
         "minimum": 1025
       },
       "scanAddress": {
