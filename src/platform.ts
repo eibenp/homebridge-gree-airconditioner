@@ -68,7 +68,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * It should be used to setup event handlers for characteristics and update respective values.
    */
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.debug('Loading accessory from cache:', accessory.displayName, accessory.context.device);
+    this.log.debug('Loading accessory from cache:', accessory.displayName, JSON.stringify(accessory.context.device));
 
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     if (accessory.context.device?.mac) {
@@ -192,7 +192,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   };
 
   registerDevice = (deviceInfo) => {
-    this.log.debug('registerDevice - deviceInfo:', deviceInfo);
+    this.log.debug('registerDevice - deviceInfo:', JSON.stringify(deviceInfo));
     const devcfg = this.config.devices.find((item) => item.mac === deviceInfo.mac) || {};
     const deviceConfig = {
       ...devcfg,
