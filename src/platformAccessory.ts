@@ -27,9 +27,10 @@ export class GreeAirConditioner {
     private readonly accessory: PlatformAccessory,
     private readonly deviceConfig: DeviceConfig,
     private readonly port: number,
-    private readonly platform_ts: GreeAirConditionerTS,
+    private readonly platform_ts: GreeAirConditionerTS|null,
   ) {
     this.accessory.context.bound = false;
+    this.platform_ts?.setBound(false);
     this.platform.log.debug(`[${this.getDeviceLabel()}] deviceConfig -> %j`, deviceConfig);
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -923,6 +924,7 @@ export class GreeAirConditioner {
           this.key = pack.key;
           this.bound = true;
           this.accessory.context.bound = true;
+          this.platform_ts?.setBound(true);
           this.platform.log.info(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac}`);
           this.platform.log.debug(`[${this.getDeviceLabel()}] Device key -> ${this.key}`);
           if (this.updateTimer){

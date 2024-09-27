@@ -73,6 +73,10 @@ export class GreeAirConditionerTS {
     this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Temperature) ->`, this.currentTemperature);
   }
 
+  public setBound(value: boolean) {
+    this.accessory.context.bound = value;
+  }
+
   getDeviceLabel() {
     return `${this.accessory.displayName} -- ${this.accessory.context.device.address}:${this.accessory.context.device.port}`;
   }

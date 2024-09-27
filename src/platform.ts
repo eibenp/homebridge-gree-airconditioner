@@ -68,18 +68,17 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * It should be used to setup event handlers for characteristics and update respective values.
    */
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.debug('Loading accessory from cache: ', accessory.displayName, accessory.context.device);
+    this.log.debug('Loading accessory from cache:', accessory.displayName, accessory.context.device);
 
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     if (accessory.context.device?.mac) {
-      if (accessory.context.deviceType === undefined || accessory.context.deviceType === 'HeaterCooler') {
-        // this is the main accessory
-        this.devices[accessory.context.device.mac] = accessory;
-      }
-      if (accessory.context.deviceType === 'TemperatureSensor') {
-        // this is the temperature sensor
-        this.devices[accessory.context.device.mac + '_ts'] = accessory;
-      }
+      accessory.context.bound = false;
+      this.devices[accessory.context.device.mac] = accessory;
+    }
+    // clean all invalid accessories found in cache
+    if (!accessory.context) {
+      this.log.debug('Invalid accessory found in cache - deleting:', accessory.displayName, accessory.UUID);
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
     }
   }
 
@@ -88,7 +87,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   cleanAccessories(err = false) {
-    // remove accessories not found on network or not responsing to bind request
+    // remove accessories not found on network or not responding to bind request
     Object.entries(this.devices).forEach(([key, value]) => {
       if (value && ((!value.context.bound && this.initializedDevices[value.UUID]) || err) &&
         (value.context.deviceType === 'HeaterCooler' || value.context.deviceType === undefined)) {
@@ -98,13 +97,17 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         } else {
           this.log.debug('Cleanup -> Previous error started cleanup of', value.displayName, key, value.UUID);
         }
-        if (value.context.accessory_ts) {
-          this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value.context.accessory_ts]);
-          this.log.debug('Cleanup -> unregisterPlatformAccessories', value.context.accessory_ts.displayName,
-            value.context.accessory_ts.context.device.mac + '_ts', value.context.accessory_ts.UUID);
-          delete this.initializedDevices[value.context.accessory_ts.UUID];
-          delete this.devices[value.context.accessory_ts.context.device.mac + '_ts'];
-        }
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value]);
+        this.log.debug('Cleanup -> unregisterPlatformAccessories', value.displayName, key, value.UUID);
+        delete this.initializedDevices[value.UUID];
+      }
+      if (value && ((!value.context.bound && this.initializedDevices[value.UUID]) || err) &&
+        value.context.deviceType === 'TemperatureSensor') {
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value]);
+        this.log.debug('Cleanup -> unregisterPlatformAccessories', value.displayName, key, value.UUID);
+        delete this.initializedDevices[value.UUID];
+      }
+      if (value && !value.context && this.initializedDevices[value.UUID]) {
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [value]);
         this.log.debug('Cleanup -> unregisterPlatformAccessories', value.displayName, key, value.UUID);
         delete this.initializedDevices[value.UUID];
@@ -189,6 +192,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   };
 
   registerDevice = (deviceInfo) => {
+    this.log.debug('registerDevice - deviceInfo:', deviceInfo);
     const devcfg = this.config.devices.find((item) => item.mac === deviceInfo.mac) || {};
     const deviceConfig = {
       ...devcfg,
@@ -230,24 +234,27 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         this.skippedDevices[deviceInfo.mac] = true;
       }
       if (accessory) {
+        delete this.devices[accessory.context.deviceInfo.mac];
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        delete this.devices[deviceConfig.mac];
+        this.log.debug('registerDevice - unregister:', accessory.displayName, accessory.UUID);
       }
       if (accessory_ts) {
+        delete this.devices[accessory_ts.context.deviceInfo.mac];
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
-        delete this.devices[deviceConfig.mac + '_ts'];
+        this.log.debug('registerDevice - unregister:', accessory_ts.displayName, accessory_ts.UUID);
       }
       return;
     }
 
     if (accessory && this.initializedDevices[accessory.UUID]) {
       // already initalized
+      this.log.debug('registerDevice - already initalized:', accessory.displayName, accessory.UUID, accessory.context.device.mac);
       return;
     }
 
     if (!accessory) {
       const deviceName = deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac);
-      this.log.debug(`Initializing new accessory ${deviceInfo.mac} with name ${deviceName}...`);
+      this.log.debug(`Initializing new accessory ${deviceInfo.mac} with name ${deviceName} ...`);
       const uuid = this.api.hap.uuid.generate(deviceInfo.mac);
       accessory = new this.api.platformAccessory(deviceName, uuid, Categories.AIR_CONDITIONER);
 
@@ -256,10 +263,10 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
 
     if (!accessory_ts && deviceConfig.temperatureSensor === 'separate') {
-      const deviceName_ts = 'Temperature Sensor - ' + (deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac));
-      this.log.debug(`Initializing new accessory ${deviceInfo.mac} with name ${deviceName_ts}...`);
+      const deviceName = 'Temperature Sensor - ' + (deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac));
+      this.log.debug(`Initializing new accessory ${deviceInfo.mac}_ts with name ${deviceName} ...`);
       const uuid = this.api.hap.uuid.generate(deviceInfo.mac + '_ts');
-      accessory_ts = new this.api.platformAccessory(deviceName_ts, uuid, Categories.SENSOR);
+      accessory_ts = new this.api.platformAccessory(deviceName, uuid, Categories.SENSOR);
 
       this.devices[deviceInfo.mac + '_ts'] = accessory_ts;
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
@@ -267,25 +274,29 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
 
     if (accessory_ts && deviceConfig.temperatureSensor !== 'separate') {
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
-      delete this.devices[deviceConfig.mac + '_ts'];
+      delete this.devices[deviceInfo.mac + '_ts'];
+      this.log.debug('registerDevice - unregister:', accessory_ts.displayName, accessory_ts.UUID);
     }
 
-    let tsService;
+    let tsService: GreeAirConditionerTS|null = null;
     if (accessory_ts && deviceConfig.temperatureSensor === 'separate') {
       // mark temperature sensor devices as initialized
-      accessory_ts.context.device = deviceInfo;
+      accessory_ts.context.device = { ...deviceInfo };
+      accessory_ts.context.device.mac = deviceInfo.mac + '_ts';
       accessory_ts.context.deviceType = 'TemperatureSensor';
       this.initializedDevices[accessory_ts.UUID] = true;
       tsService = new GreeAirConditionerTS(this, accessory_ts, deviceConfig);
+      this.log.debug(`registerDevice - ${accessory_ts.context.deviceType} initialized:`, accessory_ts.displayName,
+        accessory_ts.context.device.mac, accessory_ts.UUID);
     }
 
     if (accessory) {
       // mark devices as initialized
       accessory.context.device = deviceInfo;
       accessory.context.deviceType = 'HeaterCooler';
-      accessory.context.accessory_ts = accessory_ts;
-      accessory.context.bound = false;
       this.initializedDevices[accessory.UUID] = true;
+      this.log.debug(`registerDevice - ${accessory.context.deviceType} initialized:`, accessory.displayName,
+        accessory.context.device.mac, accessory.UUID);
       return new GreeAirConditioner(this, accessory, deviceConfig, this.config.port as number, tsService);
     }
   };
