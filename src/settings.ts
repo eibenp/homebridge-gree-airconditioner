@@ -21,6 +21,12 @@ export const ENCRYPTION_VERSION = {
   v2: 2,
 };
 
+export const TS_TYPE = {
+  disabled: 'disabled',
+  separate: 'separate',
+  child: 'child',
+};
+
 export interface DeviceConfig {
   name?: string;
   model?: string;
@@ -44,7 +50,7 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   minimumTargetTemperature: 16,
   maximumTargetTemperature: 30,
   xFanEnabled: true,
-  temperatureSensor: 'disabled',
+  temperatureSensor: TS_TYPE.disabled,
   defaultVerticalSwing: commands.swingVertical.value.default,
   overrideDefaultVerticalSwing: OVERRIDE_DEFAULT_SWING.never,
   encryptionVersion: ENCRYPTION_VERSION.auto,

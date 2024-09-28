@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform } from './platform';
-import { DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT, OVERRIDE_DEFAULT_SWING } from './settings';
+import { DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT, OVERRIDE_DEFAULT_SWING, TS_TYPE } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -27,7 +27,7 @@ export class GreeAirConditioner {
     private readonly accessory: PlatformAccessory,
     private readonly deviceConfig: DeviceConfig,
     private readonly port: number,
-    private readonly platform_ts: GreeAirConditionerTS|null,
+    private readonly platform_ts: GreeAirConditionerTS | null,
   ) {
     this.accessory.context.bound = false;
     this.platform_ts?.setBound(false);
@@ -45,7 +45,8 @@ export class GreeAirConditioner {
             this.accessory.context.device.hid.lastIndexOf('.')) : '1.0.0')
       .setCharacteristic(this.platform.Characteristic.HardwareRevision,
         this.accessory.context.device.ver ?
-          this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0');
+          this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0')
+      .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
 
     // get the HeaterCooler service if it exists, otherwise create a new  HeaterCooler service
     // we don't use subtype because we add only one service with this type
@@ -53,7 +54,7 @@ export class GreeAirConditioner {
       this.accessory.addService(this.platform.Service.HeaterCooler, this.accessory.displayName, undefined);
     this.HeaterCooler.displayName = this.accessory.displayName;
 
-    if (deviceConfig.temperatureSensor === 'child') {
+    if (deviceConfig.temperatureSensor === TS_TYPE.child) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] Add Temperature Sensor child service`);
       this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
         this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor - ' + this.accessory.displayName, undefined);
@@ -135,6 +136,9 @@ export class GreeAirConditioner {
       this.platform.log.error(`[${this.getDeviceLabel()}] Network - Error:`, err.message);
     });
     this.socket.on('message', this.handleMessage);
+    this.socket.on('close', () => {
+      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Connection closed`);
+    });
     this.socket.bind(this.port !== undefined ? (this.port + parseInt(this.accessory.context.device.address.split('.')[3]) + 1) : undefined,
       undefined, () => {
         this.platform.log.debug(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
@@ -426,6 +430,7 @@ export class GreeAirConditioner {
         }
         break;
     }
+    this.platform.api.updatePlatformAccessories([this.accessory]);
   }
 
   getDeviceLabel() {
@@ -441,23 +446,25 @@ export class GreeAirConditioner {
 
   getKeyName(obj, value, subkey?): string {
     let name = '';
-    if (subkey === undefined) {
-      Object.entries(obj).find(([key, val]) => {
-        if (val === value) {
-          name = key;
-          return true;
-        }
-        return false;
-      });
-    } else {
-      Object.entries(obj).find(([key, val]) => {
-        const v = val as Array<unknown>;
-        if (v[subkey] === value) {
-          name = key;
-          return true;
-        }
-        return false;
-      });
+    if (obj !== undefined) {
+      if (subkey === undefined) {
+        Object.entries(obj).find(([key, val]) => {
+          if (val === value) {
+            name = key;
+            return true;
+          }
+          return false;
+        });
+      } else {
+        Object.entries(obj).find(([key, val]) => {
+          const v = val as Array<unknown>;
+          if (v[subkey] === value) {
+            name = key;
+            return true;
+          }
+          return false;
+        });
+      }
     }
     return name;
   }
@@ -962,7 +969,10 @@ export class GreeAirConditioner {
             pack.opt.forEach((opt, i) => {
               const value = pack.p !== undefined ? pack.p[i] : pack.val[i];
               if (this.status[opt] !== value) {
-                updatedParams.push(`${this.getKeyName(commands, opt, 'code')}: ${this.status[opt]} -> ${value}`);
+                const cmd = this.getKeyName(commands, opt, 'code');
+                const oldval = this.getKeyName(commands[cmd].value, this.status[opt]) || this.status[opt];
+                const newval = this.getKeyName(commands[cmd].value, value) || value;
+                updatedParams.push(`${cmd}: ${oldval} -> ${newval}`);
               }
               this.status[opt] = value;
             });

@@ -32,7 +32,8 @@ export class GreeAirConditionerTS {
             this.accessory.context.device.hid.lastIndexOf('.')) : '1.0.0')
       .setCharacteristic(this.platform.Characteristic.HardwareRevision,
         this.accessory.context.device.ver ?
-          this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0');
+          this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0')
+      .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
 
     // get the TemperatureSensor service if it exists, otherwise create a new  TemperatureSensor service
     // we don't use subtype because we add only one service with this type
