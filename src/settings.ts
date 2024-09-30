@@ -88,3 +88,5 @@ export const TEMPERATURE_TABLE = {
 };
 
 export const INIT_TEMP_TRESHOLD_TIMEOUT = 100;
+
+export const DEF_SCAN_INTERVAL = 60;

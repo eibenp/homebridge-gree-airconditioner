@@ -15,23 +15,11 @@
         "required": false,
         "minimum": 1025
       },
-      "scanAddress": {
-        "type": "string",
-        "required": true,
-        "default": "192.168.1.255",
-        "format": "ipv4"
-      },
-      "scanCount": {
+      "scanInterval": {
         "type": "integer",
-        "required": true,
-        "default": 10,
-        "minimum": 3
-      },
-      "scanTimeout": {
-        "type": "integer",
-        "required": true,
-        "default": 3,
-        "minimum": 1
+        "required": false,
+        "default": 60,
+        "minimum": 5
       },
       "devices": {
         "type": "array",
@@ -233,27 +221,16 @@
       "flex-flow": "row wrap",
       "items": [
         {
-          "key": "scanAddress",
-          "flex": "1 1 50%",
-          "title": "Scan address:",
-          "description": "Local network broadcast address"
-        },
-        {
           "key": "port",
           "flex": "1 1 50%",
-          "title": "Port:"
+          "title": "Port:",
+          "description": "Requested UDP port (auto if empty)"
         },
         {
-          "key": "scanCount",
+          "key": "scanInterval",
           "flex": "1 1 50%",
-          "title": "Scan count:",
-          "description": "Initial device discovery retry count"
-        },
-        {
-          "key": "scanTimeout",
-          "flex": "1 1 50%",
-          "title": "Scan timeout:",
-          "description": "Timeout in seconds between device discovery retries"
+          "title": "Scan interval:",
+          "description": "Interval in seconds between device discovery retries (60 sec if empty)"
         }
       ]
     },
@@ -280,7 +257,7 @@
               "key": "devices[].name",
               "flex": "1 1 50%",
               "title": "Device name:",
-              "description": "Custom name of the device"
+              "description": "Custom name of the device. Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis."
             },
             {
               "key": "devices[].disabled",

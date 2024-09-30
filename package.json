@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "GREE Air Conditioner",
   "name": "homebridge-gree-ac",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Control GREE Air Conditioners from Homebridge",
   "license": "Apache-2.0",
   "repository": {
@@ -14,7 +14,7 @@
   },
   "engines": {
     "node": "^18.15.0 || ^20.8.0",
-    "homebridge": "^1.8.0"
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "main": "dist/index.js",
   "scripts": {
@@ -31,7 +31,7 @@
     "gree air conditioner"
   ],
   "dependencies": {
-    "homebridge-config-ui-x": "^4.56.3"
+    "homebridge-config-ui-x": "^4.59.0"
   },
   "devDependencies": {
     "@types/node": "^18.15.0 || ^20.8.0",
@@ -39,7 +39,7 @@
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.45.0",
     "genversion": "^3.2.0",
-    "homebridge": "^1.8.0",
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0",
     "nodemon": "^2.0.22",
     "rimraf": "^3.0.2",
     "ts-node": "^10.9.1",
