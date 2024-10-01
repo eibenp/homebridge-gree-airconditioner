@@ -258,6 +258,10 @@ Do not try to restore Homebridge configuration from backup because this error me
 
 Check if you are using the correct version of configuration settings. It is always recommended to open and save the actual configuration settings using the graphical user interface of Homebridge. Pressing the Save button on the GUI automatically converts the configuration settings to the actual version. It is useful to re-save the configuration after each upgrade or downgrade even if there are no visible changes in the parameters.
 
+#### Device not responding
+
+If an AC unit device is not supported it may be added successfully to the Home App as an accessory but never appears the "Device is bound ..." message in the Homebridge log. Unbound devices can't respond to network requests so they are unresponsive in Home App. There is no way to decide if the unresponsive device is only turned off (no AC power) or it has a not supported firmware version. It means that a missing error message does not mean that the device is supported. You can check the Homebrdige log. All supported devices write a "Device is bound ..." message into the Homebridge log after successfuly configuration upon Homebridge startup.
+
 ## Refs & Credits
 
 Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https://github.com/kongkx) for GREE network protocol information and code samples. Thank you [mateuszm7](https://github.com/mateuszm7) and [zivanek](https://github.com/zivanek) for helping to implement the version 2 network protocol.
