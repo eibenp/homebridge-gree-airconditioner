@@ -260,7 +260,7 @@ Check if you are using the correct version of configuration settings. It is alwa
 
 #### Device not responding
 
-If an AC unit device is not supported it may be added successfully to the Home App as an accessory but never appears the "Device is bound ..." message in the Homebridge log. Unbound devices can't respond to network requests so they are unresponsive in Home App. There is no way to decide if the unresponsive device is only turned off (no AC power) or it has a not supported firmware version. It means that a missing error message does not mean that the device is supported. You can check the Homebrdige log. All supported devices write a "Device is bound ..." message into the Homebridge log after successfuly configuration upon Homebridge startup.
+If an AC unit device is not supported it may be added successfully to the Home App as an accessory but never appears the "Device is bound ..." message in the Homebridge log. Unbound devices can't respond to network requests so they are unresponsive in Home App. There is no way to decide if the unresponsive device is only turned off (no AC power) or it has a not supported firmware version. It means that a missing error message does not mean that the device is supported. You can check the Homebrdige log. All supported devices write a "Device is bound ..." message into the Homebridge log after successful configuration upon Homebridge startup.
 
 ## Refs & Credits
 
