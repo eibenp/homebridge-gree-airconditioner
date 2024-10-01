@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.1.2] - 2024-10-01
+
+**<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 configuration settings should be updated.
+
+#### Configuration update steps
+
+- <ins>Recommended:</ins> Using the graphical user interface of Homebridge ([Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x))
+  1) Open plugin configuration
+  1) Review and update settings if needed
+  1) Save changes _(pressing the Save button is required to update the configuration to new version even if no changes needed in the displayed values)_
+  1) Restart Homebridge
+- **OR** <ins>Alternative:</ins> Edit the configuration file directly
+  1) Remove the following parameters from the platform section:
+     - port _(it may be kept if you want to set the UDP port manually)_
+     - scanAddress
+     - scanCount
+     - scanTimeout
+  1) Optionally you can add the following parameter to the platform section:
+     - scanInterval _(default is 60 if missing, needed only if other value required)_
+  1) Save changes
+  1) Restart Homebridge
+
+#### Updated dependencies
+- homebridge-config-ui-x 4.59.0 or later required
+- added homebridge 2.0.0-beta.0 and later to supported versions
+
+### New features
+
+- Simplified configuration
+  - Broadcast address not needed any more
+  - UDP port is optional
+  - Scan count and scan timeout replaced with scan interval parameter
+- AC units can have dynamic addresses
+
+### Fixes
+
+- Fixed "Failed to save cached accessories to disk: Converting circular structure to JSON" error
+
 ## [2.1.1] - 2024-06-25
 
 **New (v2) network encryption protocol supported since v2.1.0**
