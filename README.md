@@ -209,7 +209,7 @@ Temperature measurement is not perfect if using the built-in sensor. It is highl
 
 ### Invalid room temperature
 
-Some AC units have a built-in temperature sensor but the actual room temperature is not displayed in Home App. This is an AC firmware problem. Older firware versions do not report temperature values at all and there are some firmware versions which report a fixed value (e.g. zero) instead of the measured one. This plugin replaces the missing value and the fixed zero value by the desired target temperature. To get the correct measured temperature please try to upgrade or downgrade the AC firmware.
+Some AC units have a built-in temperature sensor but the actual room temperature is not displayed in Home App. This is an AC firmware problem. Older firmware versions do not report temperature values at all and there are some firmware versions which report a fixed value (e.g. zero) instead of the measured one. This plugin replaces the missing value and the fixed zero value by the desired target temperature. To get the correct measured temperature please try to upgrade or downgrade the AC firmware.
 
 ### Fan speed
 
