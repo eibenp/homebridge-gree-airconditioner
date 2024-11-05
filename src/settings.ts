@@ -41,6 +41,8 @@ export interface DeviceConfig {
   defaultVerticalSwing?: number;
   overrideDefaultVerticalSwing?: number;
   encryptionVersion?: number;
+  port?: number;
+  ip?: string;
 }
 
 export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {

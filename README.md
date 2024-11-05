@@ -31,10 +31,10 @@ This plugin is designed to be as simple and clear as possible and supports prima
 
 ## Requirements
 
-* Node.js (>= 18.15.0 || >= 20.8.0) with NPM
+* Node.js (>= 18.15.0 || >= 20.7.0 || >= 22.0.0) with NPM
 * Homebridge (>= 1.8.0 || >= 2.0.0-beta.0)
 
-Homebridge and all AC units have to be on the same subnet. The plugin finds all supported units automatically but controls only those which MAC address is added to configuration.
+The plugin finds all supported units automatically if they are located on the same subnet but controls only those which MAC address is added to the configuration. AC units on different subnets are also supported if the unit's IP address is set in the configuration. (MAC address have to be set correctly in this case also.)
 
 IPv4 address is required. GREE Air Conditioners do not support IPv6 nor other network protocols.
 
@@ -48,7 +48,7 @@ This is not plugin dependency but its good to know that Homebridge server host a
  
 > If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported.
 >
-> If you don't get _"Device is bound ..."_ message within a few minutes after Homebridge startup and the correct MAC address is added to the configuration and the AC unit is accessible on the same subnet then your device is not supported.
+> If you don't get _"Device is bound ..."_ message within a few minutes after Homebridge startup and the correct MAC address is added to the configuration and the AC unit is accessible on the network then your device is not supported.
 
 By default this plugin tries to auto detect the network protocol encryption version. If not the right version is selected there can get errors and the AC device will not correctly work. It is possible to force a network protocol encryption version in configuration file. If auto detection does not work then it is recommended to try all possible values to check if the device is compatible or not.
 
@@ -64,7 +64,6 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed.
-* Homebridge and AC unit on different subnets is a not supported configuration.
 * Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
 
 ## Installation instructions
@@ -126,15 +125,17 @@ _Only the relevant part of the configuration file is displayed:_
                 {
                     "mac": "502cc6000000",
                     "name": "Living room AC",
+                    "ip": "192.168.1.2",
+                    "port": 7003
+                    "statusUpdateInterval": 10,
+                    "encryptionVersion": 0,
                     "model": "Pulse 3.2kW GWH12AGB-K6DNA1A/I",
                     "speedSteps": 5,
-                    "encryptionVersion": 0,
-                    "statusUpdateInterval": 10,
-                    "sensorOffset": 40,
                     "minimumTargetTemperature": 16,
                     "maximumTargetTemperature": 30,
-                    "xFanEnabled": true,
+                    "sensorOffset": 40,
                     "temperatureSensor": "disabled",
+                    "xFanEnabled": true,
                     "overrideDefaultVerticalSwing": 0,
                     "defaultVerticalSwing": 0,
                     "disabled": false
@@ -143,27 +144,31 @@ _Only the relevant part of the configuration file is displayed:_
         }
     ]
 ```
-_It's not recommended to add the port parameter. The above example contains it but only for showing all optional parameters also._
+_It's not recommended to add the port and ip parameters. The above example contains them but only for showing all optional parameters also._
 
 * name - Unique name of the platform plugin
 * platform - **GREEAirConditioner** (fixed name, it identifies the plugin)
-* port - free UDP port (optional) (homebridge will use this port for network communication; select a port which is not used and the next 256 ports are also available because devices will be bound to a separate port based on the last part of the device's IPv4 address and the port specified in the configuration; valid values: 1025 - 65279); **Do not specify a port unless you have trouble with automatic port assignment!**
+* port - free UDP port (optional) (plugin will use this port for network communication; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
 * scanInterval - time period in seconds between device query retries (defaults to 60 sec if missing)
 * devices - devices should be listed in this block (specify as many devices as you have on your network)
   * mac - MAC address (Serial Number) of the device
   * name - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis.
+  * ip - device IP address (optional) Address is auto detected if this parameter is missing. **Specify only if device is located on a different subnet then homebridge!**
+  * port - free UDP port (optional) (plugin will listen on this port for data received from the device; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
+  * statusUpdateInterval - device status will be refreshed based on this interval (in seconds)
+  * encryptionVersion - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication
   * model - model name, information only (optional)
   * speedSteps - fan speed steps of the unit (valid values are: 3 and 5)
-  * encryptionVersion - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication
-  * statusUpdateInterval - device status will be refreshed based on this interval (in seconds)
-  * sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in °C)
   * minimumTargetTemperature - minimum target temperature accepted by the device (default is 16 °C, must be specified in °C, valid values: 16-30)
   * maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in °C, valid values: 16-30)
-  * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
+  * sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in °C)
   * temperatureSensor - control additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
+  * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
   * overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never (0) = turn off override, let device use default / After power on (1) = override default position on each power on / After power on and swing disable (2) = override default position on each power on and each time when swing is switched to disabled)
   * defaultVerticalSwing - specify the vertical swing position to be used instead of device default when overriding is enabled (Device default (0) = use device default, same position as used by device by default without overriding / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6))
   * disabled - set to true if you do not want to control this device in the Home App _(can be used also to temporarily remove the device from Home App but not if the device is not responding any more on the network)_
+
+Recommended configuration:
 
 ![Homebridge UI](./uiconfig.jpg)
 
@@ -198,6 +203,19 @@ Some settings are initialized by Home App only once (when enabling the device). 
 * speedSteps
 
 All other settings are applied when starting up Homebridge. You have to restart Homebridge to apply changes in configuration settings.
+
+### IP address
+
+IP addresses of the AC units are determined automatically by the plugin. However this auto detection works only if the AC unit is on the same subnet as homebridge. There is an optional IP address parameter which can be used to specifiy the unit's IP address if it is on a different subnet. (Routing should be correctly set up to communicate with units on different subnets.)
+
+### Port
+
+Network communication uses UDP ports. There are two kind of ports:
+
+- Plugin port. This port is used by the plugin to communicate on the network.
+- Device specific port. The plugin is listening for data received from the device using this port.
+
+All ports are set up automatically by default. In some cases auto detection is not appropriate. (E.g. when firewall rules should be set up) It is possible to overwrite the default ports by optional port parameters (for the plugin and also for each devices).
 
 ### Temperature display units
 

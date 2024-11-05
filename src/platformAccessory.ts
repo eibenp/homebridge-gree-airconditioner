@@ -139,12 +139,11 @@ export class GreeAirConditioner {
     this.socket.on('close', () => {
       this.platform.log.error(`[${this.getDeviceLabel()}] Network - Connection closed`);
     });
-    this.socket.bind(this.port !== undefined ? (this.port + parseInt(this.accessory.context.device.address.split('.')[3]) + 1) : undefined,
-      undefined, () => {
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
-        this.socket.setBroadcast(false);
-        this.sendBindRequest();
-      });
+    this.socket.bind(this.deviceConfig.port, undefined, () => {
+      this.platform.log.info(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
+      this.socket.setBroadcast(false);
+      this.sendBindRequest();
+    });
   }
 
   /**

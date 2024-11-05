@@ -62,28 +62,28 @@
               "type": "integer",
               "required": false,
               "minimum": 1,
-              "default": 10
+              "placeholder": 10
             },
             "sensorOffset": {
               "type": "integer",
               "required": false,
-              "default": 40
+              "placeholder": 40
             },
             "minimumTargetTemperature": {
               "type": "integer",
               "required": false,
               "minimum": 16,
-              "default": 16
+              "placeholder": 16
             },
             "maximumTargetTemperature": {
               "type": "integer",
               "required": false,
               "maximum": 30,
-              "default": 30
+              "placeholder": 30
             },
             "xFanEnabled": {
               "type": "boolean",
-              "default": false
+              "default": true
             },
             "temperatureSensor": {
               "type": "string",
@@ -205,6 +205,16 @@
                   ]
                 }
               ]
+            },
+            "port": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1025
+            },
+            "ip": {
+              "type": "string",
+              "required": false,
+              "format": "ipv4"
             }
           }
         }
@@ -224,7 +234,7 @@
           "key": "port",
           "flex": "1 1 50%",
           "title": "Port:",
-          "description": "Requested UDP port (auto if empty)"
+          "description": "Platform level UDP port (auto if empty)"
         },
         {
           "key": "scanInterval",
@@ -269,17 +279,19 @@
               }
             },
             {
-              "key": "devices[].model",
+              "key": "devices[].ip",
               "flex": "1 1 50%",
-              "title": "Device model:",
+              "title": "IP address:",
+              "description": "Device IP address (auto if empty)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
-              "key": "devices[].speedSteps",
+              "key": "devices[].port",
               "flex": "1 1 50%",
-              "title": "Fan speed steps:",
+              "title": "Port:",
+              "description": "Device specific UDP port (auto if empty)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -298,6 +310,22 @@
               "flex": "1 1 50%",
               "title": "Network protocol encryption version:",
               "description": "Leave this on Auto. If Auto doesn't work then set to the desired version.",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].model",
+              "flex": "1 1 50%",
+              "title": "Device model:",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].speedSteps",
+              "flex": "1 1 50%",
+              "title": "Fan speed steps:",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -330,15 +358,6 @@
               }
             },
             {
-              "key": "devices[].xFanEnabled",
-              "flex": "1 1 50%",
-              "title": "xFan enabled",
-              "description": "If enabled, then xFan functionality is turned on automatically on the device",
-              "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
-              }
-            },
-            {
               "key": "devices[].temperatureSensor",
               "flex": "1 1 50%",
               "title": "Temperature sensor:",
@@ -348,7 +367,10 @@
               }
             },
             {
-              "flex": "1 1 50%",
+              "key": "devices[].xFanEnabled",
+              "flex": "1 1 100%",
+              "title": "xFan enabled",
+              "description": "If enabled, then xFan functionality is turned on automatically on the device",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }

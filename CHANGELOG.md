@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.1.3] - 2024-11-05
+
+**<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later configuration settings should be updated.
+
+#### Updated dependencies
+- added Node.js v22 to supported versions (18.15.0 or later, 20.7.0 or later and 22.0.0 or later are supported)
+
+### New features
+- new optional IP address parameter to support devices on different subnets
+- new optional device port parameter to support cases when automatic port assigment is not appropriate
+
+### Fixes
+- consistent xFan default setting in configuration UI and in plugin behaviour
+
 ## [2.1.2] - 2024-10-01
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**

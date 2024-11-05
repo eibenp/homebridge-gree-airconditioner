@@ -36,7 +36,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.skippedDevices = {};
     this.pluginAddresses = this.getNetworkAddresses();
     if (Object.entries(this.pluginAddresses).length > 0) {
-      this.log.debug('Homebridge host addresses: ', this.pluginAddresses);
+      this.log.debug('Device detection address list {(address : netmask) pairs}:', this.pluginAddresses);
     } else {
       this.log.error('Error: Homebridge host has no IPv4 address');
     }
@@ -100,10 +100,10 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
 
   discoverDevices() {
     if (this.config.port === undefined || (this.config.port !== undefined && typeof this.config.port === 'number' &&
-      this.config.port === this.config.port && this.config.port >= 0 && this.config.port <= 65279)) {
+      this.config.port === this.config.port && this.config.port >= 1025 && this.config.port <= 65535)) {
       this.socket.bind(this.config.port, undefined, () => this.bindCallback());
     } else {
-      this.log.error('Error: Port is misconfigured (Valid port values: 1025~65279 or leave port empty to auto select)');
+      this.log.error('Error: Port is misconfigured (Valid port values: 1025~65535 or leave port empty to auto select)');
       this.socket.close();
     }
   }
@@ -183,6 +183,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         deviceConfig[key] = value;
       }
     });
+    if (deviceConfig.port !== undefined && (typeof deviceConfig.port !== 'number' || deviceConfig.port !== deviceConfig.port ||
+      (typeof deviceConfig.port === 'number' && (deviceConfig.port < 1025 || deviceConfig.port > 65535)))) {
+      this.log.warn('Warning: Port is misconfigured (Valid port values: 1025~65535 or leave port empty to auto select) - ' +
+        `Accessory ${deviceInfo.mac} listening port overridden: ${deviceConfig.port} -> auto`);
+      deviceConfig.port = undefined;
+    }
     // force encryption version if set in config
     if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {
       deviceInfo.encryptionVersion = deviceConfig.encryptionVersion;
@@ -296,10 +302,15 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   broadcastScan() {
     const message = Buffer.from(JSON.stringify({ t: 'scan' }));
     Object.entries(this.pluginAddresses).forEach((value) => {
-      this.socket.send(message, 0, message.length, UDP_SCAN_PORT, value[0], (error) => {
-        this.log.debug(`Broadcast '${message}' ${value[0]}:${UDP_SCAN_PORT}`);
+      const addr = value[0];
+      this.socket.send(message, 0, message.length, UDP_SCAN_PORT, addr, (error) => {
+        if (this.pluginAddresses[addr] === '255.255.255.255') {
+          this.log.debug(`Querying device '${message}' ${addr}:${UDP_SCAN_PORT}`);
+        } else {
+          this.log.debug(`Broadcasting '${message}' ${addr}:${UDP_SCAN_PORT}`);
+        }
         if (error) {
-          this.log.error('broadcastScan - Error:', error.message);
+          this.log.error('Device detection - Error:', error.message);
         }
       });
     });
@@ -320,18 +331,40 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
             const netmaskParts = iface.netmask.split('.');
             const broadcast = addrParts.map((e, i) => ((~Number(netmaskParts[i]) & 0xFF) | Number(e)).toString()).join('.');
             this.log.debug('Interface: \'%s\' Address: %s Netmask: %s Broadcast: %s', name, iface.address, iface.netmask, broadcast);
-            pluginAddresses[broadcast] = pluginAddresses[broadcast] === undefined ? iface.address :
-              pluginAddresses[broadcast] + ';' + iface.address;
+            if (pluginAddresses[broadcast] === undefined) {
+              pluginAddresses[broadcast] = iface.netmask;
+            }
           }
         }
       }
     }
-    // Sort IP addresses for consistent comparison
-    for (const bcast of Object.keys(pluginAddresses)) {
-      // Keep only unique IPs
-      const ips = Array.from(new Set(pluginAddresses[bcast].split(';') as string[]));
-      ips.sort((a, b) => (a < b ? -1 : 1));
-      pluginAddresses[bcast] = ips.join(';');
+    // Add IPs from configuration but only if at least one host address found
+    if (Object.keys(pluginAddresses).length > 0) {
+      const devcfgs:[] = this.config.devices.filter((item) => item.ip && !item.disabled) || [];
+      devcfgs.forEach((value) => {
+        const ip: string = value['ip'];
+        const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})(\.(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})){3}$/;
+        if (ipv4Pattern.test(ip)) {
+          this.log.debug('Found AC Unit address in configuration:', ip);
+          const addrParts = ip.split('.');
+          const addresses = {};
+          Object.keys(pluginAddresses).forEach((addr) => {
+            const netmaskParts = pluginAddresses[addr].split('.');
+            const broadcast = addrParts.map((e, i) => ((~Number(netmaskParts[i]) & 0xFF) | Number(e)).toString()).join('.');
+            if (addr === broadcast) {
+              addresses[ip] = true;
+            }
+          });
+          const skipAddress = Object.keys(addresses).find((addr) => addr === ip);
+          if (skipAddress === undefined) {
+            pluginAddresses[ip] = '255.255.255.255';
+          } else {
+            this.log.debug('AC Unit (%s) is already on broadcast list - skipping', skipAddress);
+          }
+        } else {
+          this.log.warn('Warning: Invalid IP address found in configuration: %s - skipping', ip);
+        }
+      });
     }
     return pluginAddresses;
   }
