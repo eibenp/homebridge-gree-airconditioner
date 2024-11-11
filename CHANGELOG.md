@@ -7,7 +7,7 @@
 When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
 
 ### New features
-- Added support of devices with hardware version V3.x which use a mix of V1 and V2 network encryption
+- Added support of devices with hardware version V3.x which use a mix of V1 and V2 network encryptions
 - Reorganized device registration with binding error detection
 
 ### Fixes
