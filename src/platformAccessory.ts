@@ -1,8 +1,9 @@
 import dgram from 'dgram';
-import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
+import { Service, CharacteristicValue } from 'homebridge';
 
-import { GreeACPlatform } from './platform';
-import { DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT, OVERRIDE_DEFAULT_SWING, TS_TYPE } from './settings';
+import { GreeACPlatform, MyPlatformAccessory } from './platform';
+import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT, OVERRIDE_DEFAULT_SWING, TS_TYPE,
+  BINDING_TIMEOUT } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -13,25 +14,61 @@ import commands from './commands';
  * Each accessory may expose multiple services of different service types.
  */
 export class GreeAirConditioner {
-  private HeaterCooler: Service;
+  private HeaterCooler: Service | undefined;
   private TemperatureSensor: Service | undefined;
   private socket: dgram.Socket;
   private key: string | undefined;
   private cols: Array<string> | undefined;
-  private bound: boolean;
   private status: object;
-  private updateTimer: NodeJS.Timeout | undefined;
+  private tsAccessory: GreeAirConditionerTS | null = null;
 
   constructor(
     private readonly platform: GreeACPlatform,
-    private readonly accessory: PlatformAccessory,
+    private readonly accessory: MyPlatformAccessory,
     private readonly deviceConfig: DeviceConfig,
-    private readonly port: number,
-    private readonly platform_ts: GreeAirConditionerTS | null,
+    private readonly tsAccessoryMac: string,
   ) {
-    this.accessory.context.bound = false;
-    this.platform_ts?.setBound(false);
+    // platform, accessory and service initialization is implemented in a separate funcion (initAccessory), because
+    // it should be made only on successful binding with network device
     this.platform.log.debug(`[${this.getDeviceLabel()}] deviceConfig -> %j`, deviceConfig);
+
+    // initialize communication with device
+    this.status = {};
+    this.socket = dgram.createSocket({type: 'udp4', reuseAddr: true});
+    this.socket.on('error', (err) => {
+      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Error:`, err.message);
+    });
+    this.socket.on('message', this.handleMessage);
+    this.socket.on('close', () => {
+      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Connection closed`);
+    });
+    if (this.platform.ports.indexOf(this.deviceConfig.port || 0) >= 0) {
+      this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: Configured port (%i) is already used - replacing with auto assigned port`,
+        this.deviceConfig.port);
+      this.deviceConfig.port = undefined;
+    }
+    this.socket.bind(this.deviceConfig.port, undefined, () => {
+      this.platform.log.info(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
+      this.platform.ports.push(this.socket.address().port);
+      this.socket.setBroadcast(false);
+      this.sendBindRequest();
+      setTimeout(this.checkBindingStatus.bind(this, 1), BINDING_TIMEOUT);
+    });
+  }
+
+  // All platform, accessory and service initialization is made in initAccessory function
+  initAccessory() {
+    // register accessory in homebridge by api if not registered before
+    if (!this.accessory.registered) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] registering new accessory in homebridge:`, this.accessory.context.device.mac,
+        this.accessory.UUID);
+      this.platform.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [this.accessory]);
+    }
+    this.platform.api.updatePlatformAccessories([this.accessory]);
+    if (this.tsAccessoryMac) {
+      this.tsAccessory = new GreeAirConditionerTS(this.platform, this.platform.getAccessory(this.accessory.context.device.mac + '_ts'));
+    }
+
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.device.brand || 'Gree')
@@ -54,15 +91,15 @@ export class GreeAirConditioner {
       this.accessory.addService(this.platform.Service.HeaterCooler, this.accessory.displayName, undefined);
     this.HeaterCooler.displayName = this.accessory.displayName;
 
-    if (deviceConfig.temperatureSensor === TS_TYPE.child) {
+    if (this.deviceConfig.temperatureSensor === TS_TYPE.child) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] Add Temperature Sensor child service`);
       this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
         this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor - ' + this.accessory.displayName, undefined);
       this.TemperatureSensor.displayName = 'Temperature Sensor - ' + this.accessory.displayName;
     } else {
       const ts = this.accessory.getService(this.platform.Service.TemperatureSensor);
-      this.platform.log.debug(`[${this.getDeviceLabel()}] Temperature Sensor child service not allowed%s`,
-        ts?.displayName !== undefined ? ' (' + ts?.displayName + ')' : '');
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Temperature Sensor child service not allowed`,
+        ts?.displayName !== undefined ? '(' + ts?.displayName + ')' : '');
       if (ts !== undefined) {
         this.platform.log.debug(`[${this.getDeviceLabel()}] Remove Temperature Sensor child service (%s)`, ts.displayName);
         this.accessory.removeService(ts);
@@ -127,23 +164,31 @@ export class GreeAirConditioner {
         minStep: 1 })
       .onGet(this.getRotationSpeed.bind(this))
       .onSet(this.setRotationSpeed.bind(this));
+  }
 
-    // initialize communication with device
-    this.status = {};
-    this.bound = false;
-    this.socket = dgram.createSocket({type: 'udp4', reuseAddr: true});
-    this.socket.on('error', (err) => {
-      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Error:`, err.message);
-    });
-    this.socket.on('message', this.handleMessage);
-    this.socket.on('close', () => {
-      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Connection closed`);
-    });
-    this.socket.bind(this.deviceConfig.port, undefined, () => {
-      this.platform.log.info(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
-      this.socket.setBroadcast(false);
-      this.sendBindRequest();
-    });
+  // this function is a callback to check the status of binding after timeout period has ellapsed
+  checkBindingStatus(bindNo: number) {
+    if (!this.accessory.bound) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Device binding timeout`);
+      switch (bindNo) {
+        case 1: {
+          // 1. timeout -> repeat bind request with alternate encryption version
+          if (this.accessory.context.device.encryptionVersion === 1) {
+            this.accessory.context.device.encryptionVersion = 2;
+          } else {
+            this.accessory.context.device.encryptionVersion = 1;
+          }
+          this.sendBindRequest();
+          setTimeout(this.checkBindingStatus.bind(this, bindNo + 1), BINDING_TIMEOUT);
+          break;
+        }
+        default: {
+          this.platform.log.error(`[${this.getDeviceLabel()}] Error: Device is not bound`,
+            '(unknown device type or device is malfunctioning [turning the power supply off and on may help])',
+            '- Restart homebridge when issue has fixed!');
+        }
+      }
+    }
   }
 
   /**
@@ -403,26 +448,26 @@ export class GreeAirConditioner {
   initThresholdTemperature(HeaterCoolerState : number) {
     switch (HeaterCoolerState) {
       case this.platform.Characteristic.CurrentHeaterCoolerState.COOLING:
-        if (this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue !==
+        if (this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue !==
           this.deviceConfig.minimumTargetTemperature ||
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue !==
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue !==
           this.deviceConfig.maximumTargetTemperature) {
           this.platform.log.debug(`[${this.getDeviceLabel()}] Set CoolingThresholdTemperature minValue -> %i, maxValue -> %i`,
             this.deviceConfig.minimumTargetTemperature, this.deviceConfig.maximumTargetTemperature);
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
             .setProps({
               minValue: this.deviceConfig.minimumTargetTemperature,
               maxValue: this.deviceConfig.maximumTargetTemperature });
         }
         break;
       case this.platform.Characteristic.CurrentHeaterCoolerState.HEATING:
-        if (this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue !==
+        if (this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue !==
           this.deviceConfig.minimumTargetTemperature ||
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue !==
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue !==
           this.deviceConfig.maximumTargetTemperature) {
           this.platform.log.debug(`[${this.getDeviceLabel()}] Set HeatingThresholdTemperature minValue -> %i, maxValue -> %i`,
             this.deviceConfig.minimumTargetTemperature, this.deviceConfig.maximumTargetTemperature);
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
             .setProps({
               minValue: this.deviceConfig.minimumTargetTemperature,
               maxValue: this.deviceConfig.maximumTargetTemperature });
@@ -496,8 +541,8 @@ export class GreeAirConditioner {
       return 25; // default value if invalid data received from device
     }
     // some temperature values are the same on the physical AC unit -> fix this issue:
-    const targetValue = this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).value ||
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).value;
+    const targetValue = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).value ||
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).value;
     if ((targetValue === 17.5 && value === 18) ||
       (targetValue === 22.5 && value === 23) ||
       (targetValue === 27.5 && value === 28)) {
@@ -521,7 +566,7 @@ export class GreeAirConditioner {
     const command: Record<string, unknown> = { [commands.power.code]: powerValue };
     let logValue = 'power -> ' + this.getKeyName(commands.power.value, powerValue);
     if (powerValue === commands.power.value.on) {
-      switch (this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value) {
+      switch (this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value) {
         case this.platform.Characteristic.TargetHeaterCoolerState.COOL:
           if (this.status[commands.mode.code] !== commands.mode.value.cool) {
             command[commands.mode.code] = commands.mode.value.cool;
@@ -593,15 +638,15 @@ export class GreeAirConditioner {
     switch (this.status[commands.mode.code]) {
       case commands.mode.value.cool:
         minValue = Math.max(this.deviceConfig.minimumTargetTemperature,
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue || 10);
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue || 10);
         maxValue = Math.min(this.deviceConfig.maximumTargetTemperature,
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue || 35);
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue || 35);
         break;
       case commands.mode.value.heat:
         minValue = Math.max(this.deviceConfig.minimumTargetTemperature,
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue || 0);
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue || 0);
         maxValue = Math.min(this.deviceConfig.maximumTargetTemperature,
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue || 25);
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue || 25);
         break;
     }
     return Math.max(Math.min(
@@ -619,7 +664,7 @@ export class GreeAirConditioner {
     const tempOffset = this.calcDeviceTargetOffset(value);
     command[commands.temperatureOffset.code] = tempOffset;
     logValue += ', temperatureOffset -> ' + tempOffset.toString();
-    const displayUnits = this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits).value;
+    const displayUnits = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits).value;
     const deviceDisplayUnits = (displayUnits === this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS) ?
       commands.units.value.celsius : commands.units.value.fahrenheit;
     if (deviceDisplayUnits === commands.units.value.fahrenheit) {
@@ -729,7 +774,7 @@ export class GreeAirConditioner {
     // Active
     if (props.includes(commands.power.code)) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Active) ->`, this.power ? 'ACTIVE' : 'INACTIVE');
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.Active)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.Active)
         .updateValue(this.power ?
           this.platform.Characteristic.Active.ACTIVE : this.platform.Characteristic.Active.INACTIVE);
     }
@@ -739,39 +784,39 @@ export class GreeAirConditioner {
         switch (this.mode) {
           case commands.mode.value.cool:
             this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> COOLING`);
-            this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+            this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
               .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING);
             break;
           case commands.mode.value.heat:
             this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> HEATING`);
-            this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+            this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
               .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING);
             break;
           case commands.mode.value.fan:
           case commands.mode.value.dry:
             this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> IDLE`);
-            this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+            this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
               .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
             break;
           case commands.mode.value.auto:
             if (this.currentTemperature > this.targetTemperature + 1.5) {
               this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> COOLING`);
-              this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+              this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
                 .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING);
             } else if (this.currentTemperature < this.targetTemperature - 1.5) {
               this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> HEATING`);
-              this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+              this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
                 .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING);
             } else {
               this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> IDLE`);
-              this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+              this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
                 .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
             }
             break;
         }
       } else {
         this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Heater-Cooler State) -> INACTIVE`);
-        this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
           .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.INACTIVE);
       }
     }
@@ -780,55 +825,55 @@ export class GreeAirConditioner {
       switch (this.mode) {
         case commands.mode.value.cool:
           this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Target Heater-Cooler State) -> COOL`);
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
             .updateValue(this.platform.Characteristic.TargetHeaterCoolerState.COOL);
           break;
         case commands.mode.value.heat:
           this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Target Heater-Cooler State) -> HEAT`);
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
             .updateValue(this.platform.Characteristic.TargetHeaterCoolerState.HEAT);
           break;
         default:
           this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Target Heater-Cooler State) -> AUTO`);
-          this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
             .updateValue(this.platform.Characteristic.TargetHeaterCoolerState.AUTO);
       }
     }
     // Current Temperature
     if (props.includes(commands.temperature.code)) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Temperature) ->`, this.currentTemperature);
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
         .updateValue(this.currentTemperature);
       this.TemperatureSensor?.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
         .updateValue(this.currentTemperature);
-      this.platform_ts?.setCurrentTemperature(this.currentTemperature);
-      this.platform_ts?.TemperatureSensor.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+      this.tsAccessory?.setCurrentTemperature(this.currentTemperature);
+      this.tsAccessory?.TemperatureSensor.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
         .updateValue(this.currentTemperature);
     } else if (props.includes(commands.targetTemperature.code) && this.TemperatureSensor === undefined) {
       // temperature is not accessible -> targetTemperature is saved as currentTemperature
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Temperature) ->`, this.currentTemperature);
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
         .updateValue(this.currentTemperature);
     }
     // Cooling Threshold Temperature
     if (props.includes(commands.targetTemperature.code) && this.power &&
       (this.mode === commands.mode.value.cool || this.mode === commands.mode.value.auto)) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Cooling Threshold Temperature) ->`, this.targetTemperature);
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
         .updateValue(this.targetTemperature);
     }
     // Heating Threshold Temperature
     if (props.includes(commands.targetTemperature.code) && this.power &&
       (this.mode === commands.mode.value.heat || this.mode === commands.mode.value.auto)) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Heating Threshold Temperature) ->`, this.targetTemperature);
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
         .updateValue(this.targetTemperature);
     }
     // Temperature Display Units
     if (props.includes(commands.units.code)) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Temperature Display Units) ->`,
         this.units === commands.units.value.celsius ? 'CELSIUS' : 'FAHRENHEIT');
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
         .updateValue(this.units === commands.units.value.celsius ?
           this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS : this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
     }
@@ -852,7 +897,7 @@ export class GreeAirConditioner {
           break;
       }
       this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Swing Mode) ->`, logValue);
-      this.HeaterCooler.getCharacteristic(this.platform.Characteristic.SwingMode)
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.SwingMode)
         .updateValue(swing);
     }
     // Rotation Speed
@@ -861,13 +906,13 @@ export class GreeAirConditioner {
       if (props.includes(commands.quietMode.code) && this.quietMode === commands.quietMode.value.on) {
         // quietMode -> on
         this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Rotation Speed) -> 1 (quiet)`);
-        this.HeaterCooler.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
           .updateValue(1);
       } else if (props.includes(commands.powerfulMode.code) && this.powerfulMode === commands.powerfulMode.value.on) {
         // powerfulMode -> on
         logValue = `${this.deviceConfig.speedSteps + 3} (powerful)`;
         this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Rotation Speed) ->`, logValue);
-        this.HeaterCooler.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
           .updateValue(this.deviceConfig.speedSteps + 3);
       } else if (props.includes(commands.speed.code)) {
         // speed
@@ -895,7 +940,7 @@ export class GreeAirConditioner {
             break;
         }
         this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Rotation Speed) ->`, logValue);
-        this.HeaterCooler.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
           .updateValue(speedValue);
       }
     }
@@ -926,22 +971,22 @@ export class GreeAirConditioner {
       this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Package -> %j`, pack);
       switch (pack.t) {
         case 'bindok': // package type is binding confirmation
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Device binding`);
-          this.key = pack.key;
-          this.bound = true;
-          this.accessory.context.bound = true;
-          this.platform_ts?.setBound(true);
-          this.platform.log.info(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac}`);
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Device key -> ${this.key}`);
-          if (this.updateTimer){
-            clearInterval(this.updateTimer);
+          if(!this.accessory.bound) {
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Device binding in progress`);
+            this.key = pack.key;
+            this.initAccessory();
+            this.accessory.bound = true;
+            this.platform.log.info(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac}`);
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Device key -> ${this.key}`);
+            this.requestDeviceStatus();
+            setInterval(this.requestDeviceStatus.bind(this),
+              this.deviceConfig.statusUpdateInterval * 1000); // statusUpdateInterval in seconds
+          } else {
+            this.platform.log.debug(`[${this.getDeviceLabel()}] Binding response received from already bound device`);
           }
-          this.requestDeviceStatus();
-          this.updateTimer = setInterval(this.requestDeviceStatus.bind(this),
-            this.deviceConfig.statusUpdateInterval * 1000); // statusUpdateInterval in seconds
           break;
         case 'dat': // package type is device status
-          if (this.bound){
+          if (this.accessory.bound){
             pack.cols.forEach((col, i) => {
               if (!(col === commands.temperature.code && i === 0)) { // temperature value 0 should be ignored (means: no sensor data)
                 this.status[col] = pack.dat[i];
@@ -962,7 +1007,7 @@ export class GreeAirConditioner {
           }
           break;
         case 'res': // package type is response
-          if (this.bound){
+          if (this.accessory.bound){
             this.platform.log.debug(`[${this.getDeviceLabel()}] Device response`);
             const updatedParams = [] as Array<string>;
             pack.opt.forEach((opt, i) => {

@@ -48,7 +48,7 @@ This is not plugin dependency but its good to know that Homebridge server host a
  
 > If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported.
 >
-> If you don't get _"Device is bound ..."_ message within a few minutes after Homebridge startup and the correct MAC address is added to the configuration and the AC unit is accessible on the network then your device is not supported.
+> If you get _"Error: Device is not bound ..."_ error message then your device may not be supported. (The same error occures when device is malfunctioning but if turning the power supply off and on does not solve the problem then your device is not supported.)
 
 By default this plugin tries to auto detect the network protocol encryption version. If not the right version is selected there can get errors and the AC device will not correctly work. It is possible to force a network protocol encryption version in configuration file. If auto detection does not work then it is recommended to try all possible values to check if the device is compatible or not.
 
@@ -155,7 +155,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * name - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis.
   * ip - device IP address (optional) Address is auto detected if this parameter is missing. **Specify only if device is located on a different subnet then homebridge!**
   * port - free UDP port (optional) (plugin will listen on this port for data received from the device; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
-  * statusUpdateInterval - device status will be refreshed based on this interval (in seconds)
+  * statusUpdateInterval - device status will be refreshed based on this interval (in seconds, default is 10 seconds)
   * encryptionVersion - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication
   * model - model name, information only (optional)
   * speedSteps - fan speed steps of the unit (valid values are: 3 and 5)
@@ -215,7 +215,7 @@ Network communication uses UDP ports. There are two kind of ports:
 - Plugin port. This port is used by the plugin to communicate on the network.
 - Device specific port. The plugin is listening for data received from the device using this port.
 
-All ports are set up automatically by default. In some cases auto detection is not appropriate. (E.g. when firewall rules should be set up) It is possible to overwrite the default ports by optional port parameters (for the plugin and also for each devices).
+All ports are set up automatically by default. In some cases auto detection is not appropriate. (E.g. when firewall rules should be set up) It is possible to overwrite the default ports by optional port parameters (for the plugin and also for each devices). _Note that the ports must be unique._
 
 ### Temperature display units
 

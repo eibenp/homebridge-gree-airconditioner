@@ -1,7 +1,7 @@
-import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
+import { Service, CharacteristicValue } from 'homebridge';
 
-import { GreeACPlatform } from './platform';
-import { DeviceConfig } from './settings';
+import { GreeACPlatform, MyPlatformAccessory } from './platform';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 
 /**
  * Platform Accessory
@@ -10,20 +10,25 @@ import { DeviceConfig } from './settings';
  */
 export class GreeAirConditionerTS {
   public TemperatureSensor: Service;
-  private currentTemperature: number;
+  private currentTemperature = 25;
 
   constructor(
     private readonly platform: GreeACPlatform,
-    private readonly accessory: PlatformAccessory,
-    private readonly deviceConfig: DeviceConfig,
+    private readonly accessory: MyPlatformAccessory,
   ) {
-    this.currentTemperature = 25;
+    // register accessory in homebridge by api if not registered before
+    if (!this.accessory.registered) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] registering new accessory in homebridge:`, this.accessory.context.device.mac,
+        this.accessory.UUID);
+      this.platform.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [this.accessory]);
+    }
+    this.platform.api.updatePlatformAccessories([this.accessory]);
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.device.brand || 'Gree')
       .setCharacteristic(this.platform.Characteristic.Model,
-        this.deviceConfig?.model || this.accessory.context.device.model || this.accessory.context.device.name || 'Air Conditioner')
+        this.accessory.context.device.model || this.accessory.context.device.name || 'Air Conditioner')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.mac)
       .setCharacteristic(this.platform.Characteristic.FirmwareRevision,
         this.accessory.context.device.hid && this.accessory.context.device.hid.lastIndexOf('V') >= 0 &&
@@ -72,10 +77,6 @@ export class GreeAirConditionerTS {
   public setCurrentTemperature(value: number) {
     this.currentTemperature = value;
     this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Current Temperature) ->`, this.currentTemperature);
-  }
-
-  public setBound(value: boolean) {
-    this.accessory.context.bound = value;
   }
 
   getDeviceLabel() {

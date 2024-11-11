@@ -1,10 +1,25 @@
 # Changelog
 
+## [2.1.4] - 2024-11-11
+
+**<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+
+### New features
+- Added support of devices with hardware version V3.x which use a mix of V1 and V2 network encryption
+- Reorganized device registration with binding error detection
+
+### Fixes
+- Fixed error on disabling device after successful registration
+- After homebridge startup, don't wait before scanning devices on the network
+- Handling conflicting port numbers
+
 ## [2.1.3] - 2024-11-05
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
 
-When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later configuration settings should be updated.
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
 
 #### Updated dependencies
 - added Node.js v22 to supported versions (18.15.0 or later, 20.7.0 or later and 22.0.0 or later are supported)
@@ -20,7 +35,7 @@ When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later configuration settings sh
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
 
-When upgrading from v2.0.0 - v2.1.1 to v2.1.2 configuration settings should be updated.
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2, configuration settings should be updated.
 
 #### Configuration update steps
 

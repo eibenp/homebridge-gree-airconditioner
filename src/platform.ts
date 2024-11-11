@@ -6,9 +6,14 @@ import { networkInterfaces } from 'os';
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION, TS_TYPE,
   DEF_SCAN_INTERVAL } from './settings';
 import { GreeAirConditioner } from './platformAccessory';
-import { GreeAirConditionerTS } from './tsAccessory';
+//import { GreeAirConditionerTS } from './tsAccessory';
 import commands from './commands';
 import { version } from './version';
+
+export interface MyPlatformAccessory extends PlatformAccessory {
+  bound?: boolean;
+  registered?: boolean;
+}
 
 /**
  * HomebridgePlatform
@@ -20,11 +25,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
   // this is used to track restored cached accessories
-  private devices: Record<string, PlatformAccessory>;
-  private initializedDevices: Record<string, boolean>;
+  private devices: Record<string, MyPlatformAccessory>;
+  private processedDevices: Record<string, boolean>;
   private skippedDevices: Record<string, boolean>;
   private socket: dgram.Socket;
   private pluginAddresses: Record<string, string> = {};
+  public ports: number[] = [];
 
   constructor(
     public readonly log: Logger,
@@ -32,7 +38,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     public readonly api: API,
   ) {
     this.devices = {};
-    this.initializedDevices = {};
+    this.processedDevices = {};
     this.skippedDevices = {};
     this.pluginAddresses = this.getNetworkAddresses();
     if (Object.entries(this.pluginAddresses).length > 0) {
@@ -71,18 +77,25 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * This function is invoked when homebridge restores cached accessories from disk at startup.
    * It should be used to setup event handlers for characteristics and update respective values.
    */
-  configureAccessory(accessory: PlatformAccessory) {
+  configureAccessory(accessory: MyPlatformAccessory) {
     this.log.debug('Loading accessory from cache:', accessory.displayName, JSON.stringify(accessory.context.device));
 
     // add the restored accessory to the accessories cache so we can track if it has already been registered
-    if (accessory.context.device?.mac) {
-      accessory.context.bound = false;
+    if (accessory.context?.device?.mac) {
+      if (!accessory.context.deviceType || accessory.context.deviceType === 'HeaterCooler') {
+        accessory.bound = false;
+      }
+      accessory.registered = true;
       this.devices[accessory.context.device.mac] = accessory;
     }
     // clean all invalid accessories found in cache
     if (!accessory.context) {
       this.log.debug('Invalid accessory found in cache - deleting:', accessory.displayName, accessory.UUID);
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    }
+    // remove deprecated properties from cached accessory
+    if (accessory.context?.bound !== undefined) {
+      delete accessory.context.bound;
     }
   }
 
@@ -92,9 +105,11 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    */
   bindCallback() {
     this.log.info(`${PLATFORM_NAME} (${PLUGIN_NAME}) v%s is running on UDP port %d`, version, this.socket.address().port);
+    this.ports.push(this.socket.address().port);
     this.socket.setBroadcast(true);
+    this.sendScan();
     setInterval(() => {
-      this.broadcastScan();
+      this.sendScan();
     }, (this.config.scanInterval || DEF_SCAN_INTERVAL) * 1000); // scanInterval in seconds (default = 60 sec)
   }
 
@@ -134,8 +149,9 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         encryptionVersion = 2;
       }
       this.log.debug('handleMessage - Package -> %j', pack);
-      if (encryptionVersion === 1 && pack.t === 'dev' && pack.ver && pack.ver.toString().startsWith('V2.')) {
-        // first V2 version responded to scan command with V1 encryption but binding requires V2 encryption
+      if (encryptionVersion === 1 && pack.t === 'dev' && pack.ver && !pack.ver.toString().startsWith('V1.')) {
+        // some devices respond to scan command with V1 encryption but binding requires V2 encryption
+        // we set encryption to V2 if device version is not V1.x
         encryptionVersion = 2;
       }
       if (pack.t === 'dev') {
@@ -194,8 +210,8 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       deviceInfo.encryptionVersion = deviceConfig.encryptionVersion;
       this.log.debug(`Accessory ${deviceInfo.mac} encryption version forced:`, deviceInfo.encryptionVersion);
     }
-    let accessory: PlatformAccessory | undefined = this.devices[deviceInfo.mac];
-    let accessory_ts: PlatformAccessory | undefined = this.devices[deviceInfo.mac + '_ts'];
+    let accessory: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac];
+    let accessory_ts: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac + '_ts'];
 
     if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig.mac)) {
       if (!this.skippedDevices[deviceInfo.mac]) {
@@ -205,14 +221,14 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         this.log.debug(`Accessory ${deviceInfo.mac}${devcfg.mac === undefined ? ' not configured -' : ''} skipped`);
       }
       if (accessory) {
-        delete this.devices[accessory.context.deviceInfo.mac];
+        delete this.devices[accessory.context.device.mac];
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
         this.log.debug(`registerDevice - unregister (${devcfg.mac === undefined ? 'not configured' : 'disabled'}):`,
           accessory.displayName, accessory.UUID);
         accessory = undefined;
       }
       if (accessory_ts) {
-        delete this.devices[accessory_ts.context.deviceInfo.mac];
+        delete this.devices[accessory_ts.context.device.mac];
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
         this.log.debug(`registerDevice - unregister (${devcfg.mac === undefined ? 'not configured' : 'disabled'}):`,
           accessory_ts.displayName, accessory_ts.UUID);
@@ -231,32 +247,33 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       accessory_ts.context.device.address = deviceInfo.address;
     }
 
-    if (accessory && this.initializedDevices[accessory.UUID]) {
+    if (accessory && this.processedDevices[accessory.UUID]) {
       // already initalized
-      this.log.debug('registerDevice - already initalized:', accessory.displayName, accessory.UUID, accessory.context.device.mac);
+      this.log.debug('registerDevice - already processed:', accessory.displayName, accessory.context.device.mac, accessory.UUID);
       return;
     }
 
-    // register heatercooler accessory
+    // create heatercooler accessory if not loaded from cache
     const deviceName = deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac);
     if (!accessory) {
-      this.log.debug(`Initializing new accessory ${deviceInfo.mac} with name ${deviceName} ...`);
+      this.log.debug(`Creating new accessory ${deviceInfo.mac} with name ${deviceName} ...`);
       const uuid = this.api.hap.uuid.generate(deviceInfo.mac);
       accessory = new this.api.platformAccessory(deviceName, uuid, Categories.AIR_CONDITIONER);
+      accessory.bound = false;
+      accessory.registered = false;
 
       this.devices[deviceInfo.mac] = accessory;
-      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
     }
 
-    // register temperaturesensor accessory if configured as separate
+    // create temperaturesensor accessory if configured as separate and not loaded from cache
     const tsDeviceName = 'Temperature Sensor - ' + (deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac));
     if (!accessory_ts && deviceConfig.temperatureSensor === TS_TYPE.separate) {
-      this.log.debug(`Initializing new accessory ${deviceInfo.mac}_ts with name ${tsDeviceName} ...`);
+      this.log.debug(`Creating new accessory ${deviceInfo.mac}_ts with name ${tsDeviceName} ...`);
       const uuid = this.api.hap.uuid.generate(deviceInfo.mac + '_ts');
       accessory_ts = new this.api.platformAccessory(tsDeviceName, uuid, Categories.SENSOR);
+      accessory_ts.registered = false;
 
       this.devices[deviceInfo.mac + '_ts'] = accessory_ts;
-      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
     }
 
     // unregister temperaturesensor accessory if configuration has changed from separate to any other
@@ -267,17 +284,19 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       accessory_ts = undefined;
     }
 
-    let tsService: GreeAirConditionerTS | null = null;
     if (accessory_ts && deviceConfig.temperatureSensor === TS_TYPE.separate) {
       // mark temperature sensor device as initialized
       accessory_ts.context.device = { ...deviceInfo };
       accessory_ts.context.device.mac = deviceInfo.mac + '_ts';
       accessory_ts.context.deviceType = 'TemperatureSensor';
+      if (deviceConfig.model) {
+        accessory_ts.context.device.model = deviceConfig.model;
+      }
       accessory_ts.displayName = tsDeviceName;
-      this.initializedDevices[accessory_ts.UUID] = true;
-      tsService = new GreeAirConditionerTS(this, accessory_ts, deviceConfig);
-      this.log.debug(`registerDevice - ${accessory_ts.context.deviceType} initialized:`, accessory_ts.displayName,
+      this.processedDevices[accessory_ts.UUID] = true;
+      this.log.debug(`registerDevice - ${accessory_ts.context.deviceType} created:`, accessory_ts.displayName,
         accessory_ts.context.device.mac, accessory_ts.UUID);
+      // do not load temperature sensor accessory here (it will be loaded from heatercooler accessory)
     }
 
     if (accessory) {
@@ -285,32 +304,26 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       accessory.context.device = deviceInfo;
       accessory.context.deviceType = 'HeaterCooler';
       accessory.displayName = deviceName;
-      this.initializedDevices[accessory.UUID] = true;
-      this.log.debug(`registerDevice - ${accessory.context.deviceType} initialized:`, accessory.displayName,
+      this.processedDevices[accessory.UUID] = true;
+      this.log.debug(`registerDevice - ${accessory.context.deviceType} created:`, accessory.displayName,
         accessory.context.device.mac, accessory.UUID);
-      new GreeAirConditioner(this, accessory, deviceConfig, this.config.port as number, tsService);
+      // load heatercooler accessory
+      new GreeAirConditioner(this, accessory, deviceConfig, accessory_ts?.context.device.mac);
     }
-
-    // update registered accessories at the end of initialization
-    const accessories = [accessory];
-    if (accessory_ts) {
-      accessories.push(accessory_ts);
-    }
-    this.api.updatePlatformAccessories(accessories);
   };
 
-  broadcastScan() {
+  sendScan() {
     const message = Buffer.from(JSON.stringify({ t: 'scan' }));
     Object.entries(this.pluginAddresses).forEach((value) => {
       const addr = value[0];
       this.socket.send(message, 0, message.length, UDP_SCAN_PORT, addr, (error) => {
         if (this.pluginAddresses[addr] === '255.255.255.255') {
-          this.log.debug(`Querying device '${message}' ${addr}:${UDP_SCAN_PORT}`);
+          this.log.debug(`Scanning for device (unicast) '${message}' ${addr}:${UDP_SCAN_PORT}`);
         } else {
-          this.log.debug(`Broadcasting '${message}' ${addr}:${UDP_SCAN_PORT}`);
+          this.log.debug(`Scanning for devices (broadcast) '${message}' ${addr}:${UDP_SCAN_PORT}`);
         }
         if (error) {
-          this.log.error('Device detection - Error:', error.message);
+          this.log.error('Device scan - Error:', error.message);
         }
       });
     });
@@ -367,5 +380,9 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       });
     }
     return pluginAddresses;
+  }
+
+  public getAccessory(mac: string) {
+    return this.devices[mac];
   }
 }
