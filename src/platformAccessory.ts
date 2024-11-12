@@ -987,16 +987,23 @@ export class GreeAirConditioner {
           break;
         case 'dat': // package type is device status
           if (this.accessory.bound){
+            let invalidTempFromDevice = false;
             pack.cols.forEach((col, i) => {
-              if (!(col === commands.temperature.code && i === 0)) { // temperature value 0 should be ignored (means: no sensor data)
+              if (col === commands.temperature.code && (pack.dat[i] <= 0 || pack.dat[i] >= 100)) {
+                // temperature value outside of valid range (1-99 -> -39°C - +59°C) should be ignored (means: no sensor data)
+                invalidTempFromDevice = true;
+              } else {
                 this.status[col] = pack.dat[i];
               }
             });
             this.platform.log.debug(`[${this.getDeviceLabel()}] Device status -> %j`, this.status);
-            if (!(pack.cols as [string]).includes(commands.temperature.code) &&
-              (pack.cols as [string]).includes(commands.targetTemperature.code)) {
+            if (!(pack.cols as [string]).includes(commands.temperature.code) || invalidTempFromDevice) {
               // temperature is not accessible -> use targetTemperature
-              this.status[commands.temperature.code] = this.status[commands.targetTemperature.code] + this.deviceConfig.sensorOffset;
+              const targetTemp: number = this.status[commands.targetTemperature.code] !== undefined ?
+                this.status[commands.targetTemperature.code] : 25; // use default if target temperature is also unknown
+              this.status[commands.temperature.code] = targetTemp + this.deviceConfig.sensorOffset;
+              this.platform.log.debug(`[${this.getDeviceLabel()}] Current temperature not available`,
+                '- Threshold temperature is used as current (' + commands.targetTemperature.code + '->' + commands.temperature.code + ')');
               if (this.TemperatureSensor !== undefined) {
                 this.accessory.removeService(this.TemperatureSensor);
                 this.TemperatureSensor = undefined;

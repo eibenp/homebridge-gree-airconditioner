@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.5] - 2024-11-12
+
+**<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+
+### Fixes
+- Fixed invalid temperature sensor data detection (valid temperature values are 1-99 °C) - if the device reports an invalid value, then plugin assumes that the device doesn't have a built-in temperature sensor
+
 ## [2.1.4] - 2024-11-11
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
