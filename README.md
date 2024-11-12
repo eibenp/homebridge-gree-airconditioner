@@ -63,7 +63,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App).
 * Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
-* Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed.
+* Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed. (See more in [Tips section](#tips))
 * Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
 
 ## Installation instructions
@@ -252,6 +252,17 @@ If you need to remove an old AC unit which is not accessible any more (e.g hardw
 1) Click on the waste icon of the selected accessory
 
 On some platforms the graphical user interface of Homebridge does not support accessory removal. In this case you have to remove and reinstall the plugin to remove a deprecated accessory or you need to manually edit the cache file (it requires advanced Homebridge technical knowledge).
+
+### How to restart Home App
+
+Some settings are updated only after Home App restart (e.g. Heating / Cooling threshold limits). Restarting the Home App means you have to remove it from memory and start again. This is possible by restarting the device (e.g. iPhone), or by quitting the app. On iPhone this steps are required to quit the app:
+1) From the Home Screen, swipe up from the bottom of the screen and pause in the middle of the screen.
+1) Swipe right or left to find the app that you want to close.
+1) Swipe up on the app's preview to close the app.
+
+On iPad follow these steps to quit the app:
+1) Swipe up from the bottom of the screen and hold. You will see all open apps and their preview.
+1) Swipe horizontally to find the app you wish to close. Finally, swipe up on an app card to force quit it.
 
 ### Troubleshouting
 
