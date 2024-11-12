@@ -255,7 +255,7 @@ On some platforms the graphical user interface of Homebridge does not support ac
 
 ### How to restart Home App
 
-Some settings are updated only after Home App restart (e.g. Heating / Cooling threshold limits). Restarting the Home App means you have to remove it from memory and start again. This is possible by restarting the device (e.g. iPhone), or by quitting the app. On iPhone this steps are required to quit the app:
+Some settings are updated only after Home App restart (e.g. Heating / Cooling threshold limits). Restarting the Home App means you have to remove it from memory and start again. This is possible by restarting the device (e.g. iPhone), or by quitting the app. On iPhone these steps are required to quit the app:
 1) From the Home Screen, swipe up from the bottom of the screen and pause in the middle of the screen.
 1) Swipe right or left to find the app that you want to close.
 1) Swipe up on the app's preview to close the app.
