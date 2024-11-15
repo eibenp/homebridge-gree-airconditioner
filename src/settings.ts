@@ -89,8 +89,6 @@ export const TEMPERATURE_TABLE = {
   '30,0': 30,
 };
 
-export const INIT_TEMP_TRESHOLD_TIMEOUT = 100; // milliseconds
-
 export const DEF_SCAN_INTERVAL = 60; // seconds
 
 export const BINDING_TIMEOUT = 60000; // milliseconds

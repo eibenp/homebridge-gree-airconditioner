@@ -1,9 +1,8 @@
 import dgram from 'dgram';
-import { Service, CharacteristicValue } from 'homebridge';
+import { Service, CharacteristicValue, Characteristic } from 'homebridge';
 
 import { GreeACPlatform, MyPlatformAccessory } from './platform';
-import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, INIT_TEMP_TRESHOLD_TIMEOUT, OVERRIDE_DEFAULT_SWING, TS_TYPE,
-  BINDING_TIMEOUT } from './settings';
+import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, OVERRIDE_DEFAULT_SWING, TS_TYPE, BINDING_TIMEOUT } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -133,16 +132,28 @@ export class GreeAirConditioner {
       .onGet(this.getCurrentTemperature.bind(this, 'Temperature Sensor'));
 
     // register handlers for the Cooling Threshold Temperature Characteristic
-    // (minValue and maxValue can't be set here, they need an active accessory in cooling sate to set)
+    // minValue / maxValue usually generates error messages in debug log:
+    // "Characteristic 'Cooling Threshold Temperature': characteristic was supplied illegal value ..."
+    // this is not a problem, this is information only that GREE is more restricitive than Apple's default
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
-      .setProps({ minStep: 0.5 })
+      .setProps({
+        minStep: 0.5,
+        minValue: this.deviceConfig.minimumTargetTemperature,
+        maxValue: this.deviceConfig.maximumTargetTemperature,
+      })
       .onGet(this.getTargetTemperature.bind(this, 'CoolingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
     // register handlers for the Heating Threshold Temperature Characteristic
-    // (minValue and maxValue can't be set here, they need an active accessory in heating sate to set)
+    // minValue / maxValue usually generates error messages in debug log:
+    // "Characteristic 'Heating Threshold Temperature': characteristic was supplied illegal value ..."
+    // this is not a problem, this is information only that GREE is more restricitive than Apple's default
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
-      .setProps({ minStep: 0.5 })
+      .setProps({
+        minStep: 0.5,
+        minValue: this.deviceConfig.minimumTargetTemperature,
+        maxValue: this.deviceConfig.maximumTargetTemperature,
+      })
       .onGet(this.getTargetTemperature.bind(this, 'HeatingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
@@ -324,13 +335,9 @@ export class GreeAirConditioner {
       switch (this.mode) {
         case commands.mode.value.cool:
           this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> COOLING`);
-          setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING),
-            INIT_TEMP_TRESHOLD_TIMEOUT);
           return this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
         case commands.mode.value.heat:
           this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> HEATING`);
-          setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING),
-            INIT_TEMP_TRESHOLD_TIMEOUT);
           return this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
         case commands.mode.value.fan:
         case commands.mode.value.dry:
@@ -339,14 +346,10 @@ export class GreeAirConditioner {
         case commands.mode.value.auto:
           if (this.currentTemperature > this.status[commands.targetTemperature.code]) {
             this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> COOLING`);
-            setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING),
-              INIT_TEMP_TRESHOLD_TIMEOUT);
             return this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
           }
           if (this.currentTemperature < this.status[commands.targetTemperature.code]) {
             this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> HEATING`);
-            setTimeout(() => this.initThresholdTemperature(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING),
-              INIT_TEMP_TRESHOLD_TIMEOUT);
             return this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
           }
           this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentHeaterCoolerState -> IDLE`);
@@ -445,37 +448,6 @@ export class GreeAirConditioner {
   }
 
   // helper functions
-  initThresholdTemperature(HeaterCoolerState : number) {
-    switch (HeaterCoolerState) {
-      case this.platform.Characteristic.CurrentHeaterCoolerState.COOLING:
-        if (this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue !==
-          this.deviceConfig.minimumTargetTemperature ||
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue !==
-          this.deviceConfig.maximumTargetTemperature) {
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Set CoolingThresholdTemperature minValue -> %i, maxValue -> %i`,
-            this.deviceConfig.minimumTargetTemperature, this.deviceConfig.maximumTargetTemperature);
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
-            .setProps({
-              minValue: this.deviceConfig.minimumTargetTemperature,
-              maxValue: this.deviceConfig.maximumTargetTemperature });
-        }
-        break;
-      case this.platform.Characteristic.CurrentHeaterCoolerState.HEATING:
-        if (this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue !==
-          this.deviceConfig.minimumTargetTemperature ||
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue !==
-          this.deviceConfig.maximumTargetTemperature) {
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Set HeatingThresholdTemperature minValue -> %i, maxValue -> %i`,
-            this.deviceConfig.minimumTargetTemperature, this.deviceConfig.maximumTargetTemperature);
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
-            .setProps({
-              minValue: this.deviceConfig.minimumTargetTemperature,
-              maxValue: this.deviceConfig.maximumTargetTemperature });
-        }
-        break;
-    }
-    this.platform.api.updatePlatformAccessories([this.accessory]);
-  }
 
   getDeviceLabel() {
     return `${this.accessory.displayName} -- ${this.accessory.context.device.address}:${this.accessory.context.device.port}`;
