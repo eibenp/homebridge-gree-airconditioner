@@ -1,5 +1,5 @@
 import dgram from 'dgram';
-import { Service, CharacteristicValue, Characteristic } from 'homebridge';
+import { Service, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform, MyPlatformAccessory } from './platform';
 import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, OVERRIDE_DEFAULT_SWING, TS_TYPE, BINDING_TIMEOUT } from './settings';
