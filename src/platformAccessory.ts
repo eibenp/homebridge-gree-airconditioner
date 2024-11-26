@@ -2,7 +2,8 @@ import dgram from 'dgram';
 import { Service, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform, MyPlatformAccessory } from './platform';
-import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, OVERRIDE_DEFAULT_SWING, TS_TYPE, BINDING_TIMEOUT } from './settings';
+import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, OVERRIDE_DEFAULT_SWING, TS_TYPE, BINDING_TIMEOUT,
+  TEMPERATURE_LIMITS, TEMPERATURE_UNITS } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -55,41 +56,108 @@ export class GreeAirConditioner {
     });
   }
 
+  initCharacteristics() {
+    // these characteristic properties are not updated by HomeKit, they are initialized only once
+    let minTempStep;
+    switch (this.deviceConfig.temperatureUnit) {
+      case TEMPERATURE_UNITS.celsius:
+        minTempStep = 1;
+        break;
+      case TEMPERATURE_UNITS.fahrenheit:
+      default:
+        minTempStep = 0.5;
+        break;
+    }
+
+    // Cooling Threshold Temperature Characteristic
+    // minValue / maxValue usually generates error messages in debug log:
+    // "Characteristic 'Cooling Threshold Temperature': characteristic was supplied illegal value ..."
+    // this is not a problem, this is information only that GREE is more restricitive than Apple's default
+    this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+      .setProps({
+        minStep: minTempStep,
+        minValue: Math.max(this.deviceConfig.minimumTargetTemperature, TEMPERATURE_LIMITS.coolingMinimum),
+        maxValue: Math.min(this.deviceConfig.maximumTargetTemperature, TEMPERATURE_LIMITS.coolingMaximum),
+      });
+    this.platform.log.debug(`[${this.getDeviceLabel()}] CoolingThresholdTemperature - minValue: %s, maxValue: %s, minStep: %s`,
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue?.toString(),
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue?.toString(),
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minStep?.toString());
+    // Heating Threshold Temperature Characteristic
+    // minValue / maxValue usually generates error messages in debug log:
+    // "Characteristic 'Heating Threshold Temperature': characteristic was supplied illegal value ..."
+    // this is not a problem, this is information only that GREE is more restricitive than Apple's default
+    this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+      .setProps({
+        minStep: minTempStep,
+        minValue: Math.max(this.deviceConfig.minimumTargetTemperature, TEMPERATURE_LIMITS.heatingMinimum),
+        maxValue: Math.min(this.deviceConfig.maximumTargetTemperature, TEMPERATURE_LIMITS.heatingMaximum),
+      });
+    this.platform.log.debug(`[${this.getDeviceLabel()}] HeatingThresholdTemperature - minValue: %s, maxValue: %s, minStep: %s`,
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue?.toString(),
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue?.toString(),
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minStep?.toString());
+    // Rotation Speed Characteristic
+    this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+      .setProps({
+        minValue: 0,
+        maxValue: this.deviceConfig.speedSteps + 3,
+        minStep: 1 });
+    this.platform.log.debug(`[${this.getDeviceLabel()}] RotationSpeed - minValue: %s, maxValue: %s, minStep: %s`,
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.minValue?.toString(),
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue?.toString(),
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.minStep?.toString());
+  }
+
   // All platform, accessory and service initialization is made in initAccessory function
   initAccessory() {
     // register accessory in homebridge by api if not registered before
     if (!this.accessory.registered) {
-      this.platform.log.debug(`[${this.getDeviceLabel()}] registering new accessory in homebridge:`, this.accessory.context.device.mac,
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Registering new accessory in homebridge:`, this.accessory.context.device.mac,
         this.accessory.UUID);
       this.platform.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [this.accessory]);
+      // set static accessory information
+      this.accessory.getService(this.platform.Service.AccessoryInformation)!
+        .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.device.brand || 'Gree')
+        .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.mac)
+        .setCharacteristic(this.platform.Characteristic.Model,
+          this.deviceConfig?.model || this.accessory.context.device.model || this.accessory.context.device.name || 'Air Conditioner')
+        .setCharacteristic(this.platform.Characteristic.HardwareRevision,
+          this.accessory.context.device.ver ?
+            this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0')
+        .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
+      // get the HeaterCooler service if it exists, otherwise create a new  HeaterCooler service
+      // we don't use subtype because we add only one service with this type
+      this.HeaterCooler = this.accessory.getService(this.platform.Service.HeaterCooler) ||
+        this.accessory.addService(this.platform.Service.HeaterCooler, this.accessory.displayName, undefined);
+      // set static characeristics
+      this.initCharacteristics();
     }
-    this.platform.api.updatePlatformAccessories([this.accessory]);
     if (this.tsAccessoryMac) {
       this.tsAccessory = new GreeAirConditionerTS(this.platform, this.platform.getAccessory(this.accessory.context.device.mac + '_ts'));
     }
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.device.brand || 'Gree')
-      .setCharacteristic(this.platform.Characteristic.Model,
-        this.deviceConfig?.model || this.accessory.context.device.model || this.accessory.context.device.name || 'Air Conditioner')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.mac)
       .setCharacteristic(this.platform.Characteristic.FirmwareRevision,
         this.accessory.context.device.hid && this.accessory.context.device.hid.lastIndexOf('V') >= 0 &&
         this.accessory.context.device.hid.lastIndexOf('V') < this.accessory.context.device.hid.lastIndexOf('.') ?
           this.accessory.context.device.hid.substring(this.accessory.context.device.hid.lastIndexOf('V') + 1,
-            this.accessory.context.device.hid.lastIndexOf('.')) : '1.0.0')
-      .setCharacteristic(this.platform.Characteristic.HardwareRevision,
-        this.accessory.context.device.ver ?
-          this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0')
-      .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
+            this.accessory.context.device.hid.lastIndexOf('.')) : '1.0.0');
 
     // get the HeaterCooler service if it exists, otherwise create a new  HeaterCooler service
     // we don't use subtype because we add only one service with this type
-    this.HeaterCooler = this.accessory.getService(this.platform.Service.HeaterCooler) ||
-      this.accessory.addService(this.platform.Service.HeaterCooler, this.accessory.displayName, undefined);
-    this.HeaterCooler.displayName = this.accessory.displayName;
+    if (!this.HeaterCooler) {
+      this.HeaterCooler = this.accessory.getService(this.platform.Service.HeaterCooler);
+      if (!this.HeaterCooler) {
+        this.platform.log.debug(`[${this.getDeviceLabel()}] HeaterCooler service doesn't exist - adding service`);
+        this.HeaterCooler = this.accessory.addService(this.platform.Service.HeaterCooler, this.accessory.displayName, undefined);
+        // set static characeristics
+        this.initCharacteristics();
+      }
+    }
 
+    // TemperatureSensor service
     if (this.deviceConfig.temperatureSensor === TS_TYPE.child) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] Add Temperature Sensor child service`);
       this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
@@ -107,6 +175,8 @@ export class GreeAirConditioner {
 
     this.HeaterCooler.setPrimaryService(true);
     this.TemperatureSensor?.setPrimaryService(false);
+
+    this.platform.api.updatePlatformAccessories([this.accessory]);
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://developers.homebridge.io/#/service/HeaterCooler
@@ -132,28 +202,12 @@ export class GreeAirConditioner {
       .onGet(this.getCurrentTemperature.bind(this, 'Temperature Sensor'));
 
     // register handlers for the Cooling Threshold Temperature Characteristic
-    // minValue / maxValue usually generates error messages in debug log:
-    // "Characteristic 'Cooling Threshold Temperature': characteristic was supplied illegal value ..."
-    // this is not a problem, this is information only that GREE is more restricitive than Apple's default
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
-      .setProps({
-        minStep: 0.5,
-        minValue: this.deviceConfig.minimumTargetTemperature,
-        maxValue: this.deviceConfig.maximumTargetTemperature,
-      })
       .onGet(this.getTargetTemperature.bind(this, 'CoolingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
     // register handlers for the Heating Threshold Temperature Characteristic
-    // minValue / maxValue usually generates error messages in debug log:
-    // "Characteristic 'Heating Threshold Temperature': characteristic was supplied illegal value ..."
-    // this is not a problem, this is information only that GREE is more restricitive than Apple's default
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
-      .setProps({
-        minStep: 0.5,
-        minValue: this.deviceConfig.minimumTargetTemperature,
-        maxValue: this.deviceConfig.maximumTargetTemperature,
-      })
       .onGet(this.getTargetTemperature.bind(this, 'HeatingThresholdTemperature'))
       .onSet(this.setTargetTemperature.bind(this));
 
@@ -169,10 +223,6 @@ export class GreeAirConditioner {
 
     // register handlers for the Rotation Speed Characteristic
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-      .setProps({
-        minValue: 0,
-        maxValue: this.deviceConfig.speedSteps + 3,
-        minStep: 1 })
       .onGet(this.getRotationSpeed.bind(this))
       .onSet(this.setRotationSpeed.bind(this));
   }
@@ -485,7 +535,17 @@ export class GreeAirConditioner {
     return name;
   }
 
-  calcDeviceTargetTemp(temp: number): number {
+  calcDeviceTargetTemp(temp: number, unit?: number): number {
+    if (unit === commands.units.value.celsius ||
+      (unit === undefined && this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits).value ===
+      this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS)
+    ) {
+      return Math.floor(temp);
+    }
+    if (temp >= 15.25 && temp < 15.75) {
+      // execption
+      return 15;
+    }
     const baseTemp = Math.round(temp);
     const baseFahrenheit = temp * 9 / 5 + 32;
     const baseFahrenheitDecimalPart = baseFahrenheit - Math.floor(baseFahrenheit);
@@ -494,31 +554,60 @@ export class GreeAirConditioner {
     return baseTemp - correction;
   }
 
-  calcDeviceTargetOffset(temp: number): number {
+  calcDeviceTargetOffset(temp: number, unit?: number): number {
+    if (unit === commands.units.value.celsius ||
+      (unit === undefined && this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits).value ===
+      this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS)
+    ) {
+      return 0;
+    }
     if (temp === 16) {
+      // exception
       return 0;
     }
     const baseFahrenheit = temp * 9 / 5 + 32;
     const baseFahrenheitDecimalPart = baseFahrenheit - Math.floor(baseFahrenheit);
-    return (((baseFahrenheitDecimalPart >= 0.05 && baseFahrenheitDecimalPart < 0.15) ||
-      (baseFahrenheitDecimalPart >= 0.25 && baseFahrenheitDecimalPart < 0.35) ||
-      (baseFahrenheitDecimalPart >= 0.55 && baseFahrenheitDecimalPart < 0.65) ||
-      (baseFahrenheitDecimalPart >= 0.75 && baseFahrenheitDecimalPart < 0.85)) ? 1 : 0);
+    const offset = (((baseFahrenheitDecimalPart >= 0.05 && baseFahrenheitDecimalPart < 0.15) ||
+    (baseFahrenheitDecimalPart >= 0.25 && baseFahrenheitDecimalPart < 0.35) ||
+    (baseFahrenheitDecimalPart >= 0.55 && baseFahrenheitDecimalPart < 0.65) ||
+    (baseFahrenheitDecimalPart >= 0.75 && baseFahrenheitDecimalPart < 0.85)) ? 1 : 0);
+    return temp >= 15.25 && temp < 16.25 ? 1 - offset : offset;
   }
 
-  getTargetTempFromDevice(temp, offset): number {
+  getTargetTempFromDevice(temp, offset, unit): number {
+    let targetValue: number;
+    const heatingTargetValue: number =
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).value as number | undefined || 25;
+    const coolingTargetValue: number =
+      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).value as number | undefined || 25;
+    switch (this.status[commands.mode.code]) {
+      case commands.mode.value.heat:
+        targetValue = heatingTargetValue;
+        break;
+      case commands.mode.value.cool:
+        targetValue = coolingTargetValue;
+        break;
+      default:
+        targetValue = (coolingTargetValue + heatingTargetValue) / 2;
+        break;
+    }
+    if (unit === commands.units.value.celsius) {
+      if (Math.floor(targetValue) === +temp && targetValue !== +temp) {
+        this.platform.log.debug(`[${this.getDeviceLabel()}] TargetTemperature FIX: %f -> %f`, +temp, targetValue);
+        return targetValue;
+      }
+      return +temp;
+    }
     const key = temp.toString() + ',' + offset.toString();
     const value = TEMPERATURE_TABLE[key];
     if (value === undefined) {
-      return 25; // default value if invalid data received from device
+      this.platform.log.debug(`[${this.getDeviceLabel()}] TargetTemperature FIX: invalid -> %f`, +temp);
+      return +temp; // invalid temperature-offset pair received from device -> return temperature value
     }
     // some temperature values are the same on the physical AC unit -> fix this issue:
-    const targetValue = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).value ||
-      this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).value;
-    if ((targetValue === 17.5 && value === 18) ||
-      (targetValue === 22.5 && value === 23) ||
-      (targetValue === 27.5 && value === 28)) {
-      this.platform.log.debug(`[${this.getDeviceLabel()}] TargetTemperature FIX: %d -> %d`, value, targetValue);
+    if ((targetValue === 12.5 && value === 13) || (targetValue === 17.5 && value === 18) ||
+      (targetValue === 22.5 && value === 23) || (targetValue === 27.5 && value === 28)) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] TargetTemperature FIX: %f -> %f`, value, targetValue);
       return targetValue;
     }
     // no fix needed, return original value
@@ -620,10 +709,16 @@ export class GreeAirConditioner {
         maxValue = Math.min(this.deviceConfig.maximumTargetTemperature,
           this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue || 25);
         break;
+      case commands.mode.value.auto:
+        minValue = Math.max(this.deviceConfig.minimumTargetTemperature, Math.min(
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.minValue || 10,
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.minValue || 0));
+        maxValue = Math.min(this.deviceConfig.maximumTargetTemperature, Math.max(
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).props.maxValue || 35,
+          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).props.maxValue || 25));
     }
-    return Math.max(Math.min(
-      this.getTargetTempFromDevice(this.status[commands.targetTemperature.code] || 25, this.status[commands.temperatureOffset.code] || 0),
-      (maxValue)), (minValue));
+    return Math.max(Math.min(this.getTargetTempFromDevice(this.status[commands.targetTemperature.code] || 25,
+      this.status[commands.temperatureOffset.code] || 0, this.status[commands.units.code]), (maxValue)), (minValue));
   }
 
   set targetTemperature(value) {
@@ -661,7 +756,21 @@ export class GreeAirConditioner {
       return;
     }
     const command: Record<string, unknown> = { [commands.units.code]: value };
-    this.platform.log.info(`[${this.getDeviceLabel()}] units ->`, this.getKeyName(commands.units.value, value));
+    let logValue = 'units -> ' + this.getKeyName(commands.units.value, value);
+    // convert target temperature to new unit
+    const actTemp = this.getTargetTempFromDevice(this.status[commands.targetTemperature.code],
+      this.status[commands.temperatureOffset.code], this.units);
+    const tempValue = this.calcDeviceTargetTemp(actTemp, value);
+    if (tempValue !== this.status[commands.targetTemperature.code]) {
+      command[commands.targetTemperature.code] = tempValue;
+      logValue += ', targetTemperature -> ' + tempValue.toString();
+    }
+    const tempOffset = this.calcDeviceTargetOffset(actTemp, value);
+    if (tempOffset !== this.status[commands.temperatureOffset.code]) {
+      command[commands.temperatureOffset.code] = tempOffset;
+      logValue += ', temperatureOffset -> ' + tempOffset.toString();
+    }
+    this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
     this.sendCommand(command);
   }
 

@@ -110,6 +110,24 @@
                 }
               ]
             },
+            "temperatureUnit": {
+              "type": "string",
+              "required": false,
+              "oneOf": [
+                {
+                  "title": "Celsius",
+                  "enum": [
+                    "celsius"
+                  ]
+                },
+                {
+                  "title": "Fahrenheit",
+                  "enum": [
+                    "fahrenheit"
+                  ]
+                }
+              ]
+            },
             "disabled": {
               "type": "boolean"
             },
@@ -358,19 +376,28 @@
               }
             },
             {
-              "key": "devices[].temperatureSensor",
+              "key": "devices[].temperatureUnit",
               "flex": "1 1 50%",
-              "title": "Temperature sensor:",
-              "description": "Additional temperature sensor in Home App",
+              "title": "Temperature unit:",
+              "description": "Temperature calculation mode (Fahrenheit if empty)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
               "key": "devices[].xFanEnabled",
-              "flex": "1 1 100%",
+              "flex": "1 1 50%",
               "title": "xFan enabled",
               "description": "If enabled, then xFan functionality is turned on automatically on the device",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].temperatureSensor",
+              "flex": "1 1 50%",
+              "title": "Temperature sensor:",
+              "description": "Additional temperature sensor in Home App",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }

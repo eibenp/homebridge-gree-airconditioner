@@ -4,9 +4,8 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 import { networkInterfaces } from 'os';
 
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION, TS_TYPE,
-  DEF_SCAN_INTERVAL } from './settings';
+  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_UNITS} from './settings';
 import { GreeAirConditioner } from './platformAccessory';
-//import { GreeAirConditionerTS } from './tsAccessory';
 import commands from './commands';
 import { version } from './version';
 
@@ -179,11 +178,13 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         {speedSteps: 5} : {}),
       ...((devcfg.temperatureSensor && Object.values(TS_TYPE).includes((devcfg.temperatureSensor as string).toLowerCase())) ?
         {temperatureSensor: (devcfg.temperatureSensor as string).toLowerCase()} : {temperatureSensor: TS_TYPE.disabled}),
-      ...(devcfg.minimumTargetTemperature && (devcfg.minimumTargetTemperature < DEFAULT_DEVICE_CONFIG.minimumTargetTemperature ||
-        devcfg.minimumTargetTemperature > DEFAULT_DEVICE_CONFIG.maximumTargetTemperature) ?
+      ...(devcfg.minimumTargetTemperature &&
+        (devcfg.minimumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
+        devcfg.minimumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum)) ?
         { minimumTargetTemperature: DEFAULT_DEVICE_CONFIG.minimumTargetTemperature } : {}),
-      ...(devcfg.maximumTargetTemperature && (devcfg.maximumTargetTemperature < DEFAULT_DEVICE_CONFIG.minimumTargetTemperature ||
-        devcfg.maximumTargetTemperature > DEFAULT_DEVICE_CONFIG.maximumTargetTemperature) ?
+      ...(devcfg.maximumTargetTemperature &&
+        (devcfg.maximumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
+        devcfg.maximumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum)) ?
         { maximumTargetTemperature: DEFAULT_DEVICE_CONFIG.maximumTargetTemperature } : {}),
       ...((devcfg.defaultVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
         commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
@@ -194,6 +195,20 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       ...((devcfg.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(devcfg.encryptionVersion)) ?
         { encryptionVersion: DEFAULT_DEVICE_CONFIG.encryptionVersion } : {}),
     };
+    if (deviceConfig.minimumTargetTemperature && deviceConfig.maximumTargetTemperature &&
+      deviceConfig.minimumTargetTemperature > deviceConfig.maximumTargetTemperature) {
+      deviceConfig.minimumTargetTemperature =
+        Math.min(DEFAULT_DEVICE_CONFIG.minimumTargetTemperature, DEFAULT_DEVICE_CONFIG.maximumTargetTemperature);
+      deviceConfig.maximumTargetTemperature =
+        Math.max(DEFAULT_DEVICE_CONFIG.minimumTargetTemperature, DEFAULT_DEVICE_CONFIG.maximumTargetTemperature);
+      this.log.warn('Warning: Invalid minimum and maximum target temperature values detected ->',
+        `Accessory ${deviceInfo.mac} is using default values instead of the configured ones`);
+    }
+    if (deviceConfig.temperatureUnit && !Object.values(TEMPERATURE_UNITS).includes(deviceConfig.temperatureUnit)) {
+      this.log.warn(`Warning: Invalid temperature unit detected: ${deviceConfig.temperatureUnit} ->`,
+        `Accessory ${deviceInfo.mac} is using default unit (Fahrenheit) instead of the configured one`);
+      delete deviceConfig.temperatureUnit;
+    }
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {
         deviceConfig[key] = value;
@@ -300,7 +315,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
 
     if (accessory) {
-      // mark heatercooler device as initialized
+      // mark heatercooler device as processed
       accessory.context.device = deviceInfo;
       accessory.context.deviceType = 'HeaterCooler';
       accessory.displayName = deviceName;

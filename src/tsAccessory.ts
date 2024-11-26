@@ -21,30 +21,32 @@ export class GreeAirConditionerTS {
       this.platform.log.debug(`[${this.getDeviceLabel()}] registering new accessory in homebridge:`, this.accessory.context.device.mac,
         this.accessory.UUID);
       this.platform.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [this.accessory]);
+      // set static accessory information
+      this.accessory.getService(this.platform.Service.AccessoryInformation)!
+        .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.device.brand || 'Gree')
+        .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.mac)
+        .setCharacteristic(this.platform.Characteristic.Model,
+          this.accessory.context.device.model || this.accessory.context.device.name || 'Air Conditioner')
+        .setCharacteristic(this.platform.Characteristic.HardwareRevision,
+          this.accessory.context.device.ver ?
+            this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0')
+        .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
     }
-    this.platform.api.updatePlatformAccessories([this.accessory]);
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, this.accessory.context.device.brand || 'Gree')
-      .setCharacteristic(this.platform.Characteristic.Model,
-        this.accessory.context.device.model || this.accessory.context.device.name || 'Air Conditioner')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.mac)
       .setCharacteristic(this.platform.Characteristic.FirmwareRevision,
         this.accessory.context.device.hid && this.accessory.context.device.hid.lastIndexOf('V') >= 0 &&
         this.accessory.context.device.hid.lastIndexOf('V') < this.accessory.context.device.hid.lastIndexOf('.') ?
           this.accessory.context.device.hid.substring(this.accessory.context.device.hid.lastIndexOf('V') + 1,
-            this.accessory.context.device.hid.lastIndexOf('.')) : '1.0.0')
-      .setCharacteristic(this.platform.Characteristic.HardwareRevision,
-        this.accessory.context.device.ver ?
-          this.accessory.context.device.ver.substring(this.accessory.context.device.ver.lastIndexOf('V') + 1) : '1.0.0')
-      .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
+            this.accessory.context.device.hid.lastIndexOf('.')) : '1.0.0');
 
-    // get the TemperatureSensor service if it exists, otherwise create a new  TemperatureSensor service
+    this.platform.api.updatePlatformAccessories([this.accessory]);
+
+    // get the TemperatureSensor service if it exists, otherwise create a new TemperatureSensor service
     // we don't use subtype because we add only one service with this type
     this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
       this.accessory.addService(this.platform.Service.TemperatureSensor, this.accessory.displayName, undefined);
-    this.TemperatureSensor.displayName = this.accessory.displayName;
 
     // register handlers for the Current Temperature Characteristic
     this.TemperatureSensor.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
