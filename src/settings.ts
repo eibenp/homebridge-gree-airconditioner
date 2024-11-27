@@ -27,9 +27,9 @@ export const TS_TYPE = {
   child: 'child',
 };
 
-export const TEMPERATURE_UNITS = {
-  celsius: 'celsius',
-  fahrenheit: 'fahrenheit',
+export const TEMPERATURE_STEPS = {
+  celsius: 1,
+  fahrenheit: 0.5,
 };
 
 export interface DeviceConfig {
@@ -42,7 +42,7 @@ export interface DeviceConfig {
   maximumTargetTemperature: number;
   xFanEnabled: boolean;
   temperatureSensor: string;
-  temperatureUnit?: string;
+  temperatureStepSize?: number;
   disabled?: boolean;
   defaultVerticalSwing?: number;
   overrideDefaultVerticalSwing?: number;
@@ -59,7 +59,7 @@ export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
   maximumTargetTemperature: 30,
   xFanEnabled: true,
   temperatureSensor: TS_TYPE.disabled,
-  temperatureUnit: TEMPERATURE_UNITS.fahrenheit,
+  temperatureStepSize: TEMPERATURE_STEPS.fahrenheit,
   defaultVerticalSwing: commands.swingVertical.value.default,
   overrideDefaultVerticalSwing: OVERRIDE_DEFAULT_SWING.never,
   encryptionVersion: ENCRYPTION_VERSION.auto,

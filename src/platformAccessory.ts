@@ -3,7 +3,7 @@ import { Service, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform, MyPlatformAccessory } from './platform';
 import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, OVERRIDE_DEFAULT_SWING, TS_TYPE, BINDING_TIMEOUT,
-  TEMPERATURE_LIMITS, TEMPERATURE_UNITS } from './settings';
+  TEMPERATURE_LIMITS } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
 import commands from './commands';
@@ -58,16 +58,6 @@ export class GreeAirConditioner {
 
   initCharacteristics() {
     // these characteristic properties are not updated by HomeKit, they are initialized only once
-    let minTempStep;
-    switch (this.deviceConfig.temperatureUnit) {
-      case TEMPERATURE_UNITS.celsius:
-        minTempStep = 1;
-        break;
-      case TEMPERATURE_UNITS.fahrenheit:
-      default:
-        minTempStep = 0.5;
-        break;
-    }
 
     // Cooling Threshold Temperature Characteristic
     // minValue / maxValue usually generates error messages in debug log:
@@ -75,7 +65,7 @@ export class GreeAirConditioner {
     // this is not a problem, this is information only that GREE is more restricitive than Apple's default
     this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
       .setProps({
-        minStep: minTempStep,
+        minStep: this.deviceConfig.temperatureStepSize,
         minValue: Math.max(this.deviceConfig.minimumTargetTemperature, TEMPERATURE_LIMITS.coolingMinimum),
         maxValue: Math.min(this.deviceConfig.maximumTargetTemperature, TEMPERATURE_LIMITS.coolingMaximum),
       });
@@ -89,7 +79,7 @@ export class GreeAirConditioner {
     // this is not a problem, this is information only that GREE is more restricitive than Apple's default
     this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
       .setProps({
-        minStep: minTempStep,
+        minStep: this.deviceConfig.temperatureStepSize,
         minValue: Math.max(this.deviceConfig.minimumTargetTemperature, TEMPERATURE_LIMITS.heatingMinimum),
         maxValue: Math.min(this.deviceConfig.maximumTargetTemperature, TEMPERATURE_LIMITS.heatingMaximum),
       });

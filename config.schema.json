@@ -110,23 +110,11 @@
                 }
               ]
             },
-            "temperatureUnit": {
-              "type": "string",
-              "required": false,
-              "oneOf": [
-                {
-                  "title": "Celsius",
-                  "enum": [
-                    "celsius"
-                  ]
-                },
-                {
-                  "title": "Fahrenheit",
-                  "enum": [
-                    "fahrenheit"
-                  ]
-                }
-              ]
+            "temperatureStepSize": {
+              "type": "number",
+              "minimum": 0.5,
+              "multipleOf": 0.5,
+              "required": false
             },
             "disabled": {
               "type": "boolean"
@@ -376,10 +364,10 @@
               }
             },
             {
-              "key": "devices[].temperatureUnit",
+              "key": "devices[].temperatureStepSize",
               "flex": "1 1 50%",
-              "title": "Temperature unit:",
-              "description": "Temperature calculation mode (Fahrenheit if empty)",
+              "title": "Temperature step size:",
+              "description": "Valid values: 0.5 (for °F) and 1 (for °C)<BR />(0.5 if empty or invalid)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }

@@ -4,7 +4,7 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 import { networkInterfaces } from 'os';
 
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION, TS_TYPE,
-  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_UNITS} from './settings';
+  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS} from './settings';
 import { GreeAirConditioner } from './platformAccessory';
 import commands from './commands';
 import { version } from './version';
@@ -204,10 +204,10 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       this.log.warn('Warning: Invalid minimum and maximum target temperature values detected ->',
         `Accessory ${deviceInfo.mac} is using default values instead of the configured ones`);
     }
-    if (deviceConfig.temperatureUnit && !Object.values(TEMPERATURE_UNITS).includes(deviceConfig.temperatureUnit)) {
-      this.log.warn(`Warning: Invalid temperature unit detected: ${deviceConfig.temperatureUnit} ->`,
-        `Accessory ${deviceInfo.mac} is using default unit (Fahrenheit) instead of the configured one`);
-      delete deviceConfig.temperatureUnit;
+    if (deviceConfig.temperatureStepSize !== undefined && !Object.values(TEMPERATURE_STEPS).includes(deviceConfig.temperatureStepSize)) {
+      this.log.warn(`Warning: Invalid temperature step size detected: ${deviceConfig.temperatureStepSize} ->`,
+        `Accessory ${deviceInfo.mac} is using default value (0.5) instead of the configured one`);
+      delete deviceConfig.temperatureStepSize;
     }
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {
