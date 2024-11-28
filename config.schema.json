@@ -72,7 +72,7 @@
             "minimumTargetTemperature": {
               "type": "integer",
               "required": false,
-              "minimum": 16,
+              "minimum": 8,
               "placeholder": 16
             },
             "maximumTargetTemperature": {

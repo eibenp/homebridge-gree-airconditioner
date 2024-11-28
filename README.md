@@ -17,9 +17,9 @@ You can add all of your GREE Air Conditioner devices to the Home App by specifyi
 
 Quiet / Auto / Powerful mode is supported by the fan speed control. Zero means off. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High)
 
-** these values are supported only on 5-speed models
+(**) these values are supported only on 5-speed models
 
-You have to add all devices to the Homebridge configuration. Devices are identified by MAC Address (Serial Number). It can be queried using the official [GREE+ mobile app](https://apps.apple.com/us/app/gree/id1167857672). (The app is required to connect the devices to the local WiFi network for the first time.) If an AC unit's MAC address is not added to the configuration then it will be skipped by the plugin. You can also skip a device by adding it to the configuration and setting the "disabled" parameter to true. _(This is useful if you want to temporarily remove the device but you want to keep it's parameters, e.g. changing the name is not possible without removal.)_
+All devices must be added to the Homebridge configuration. Devices are identified by MAC Address (Serial Number). It can be queried using the official [GREE+ mobile app](https://apps.apple.com/us/app/gree/id1167857672). (The app is required to connect the devices to the local WiFi network for the first time.) If an AC unit's MAC address is not added to the configuration then it will be skipped by the plugin. You can also skip a device by adding it to the configuration and setting the "disabled" parameter to true. _(This is useful if you want to temporarily remove the device but you want to keep it's parameters, e.g. changing the name or temperature step size is not possible without removal.)_
 
 xFan function is also supported, but it works automatically if enabled in Homebridge configuration. If xFan is enabled for the device, it is automatically turned on when you select a supported operating mode in Home App. If xFan is disabled, the Home App will not modify its actual setting in any case.
 
@@ -38,11 +38,11 @@ The plugin finds all supported units automatically if they are located on the sa
 
 IPv4 address is required. GREE Air Conditioners do not support IPv6 nor other network protocols.
 
-This is not plugin dependency but its good to know that Homebridge server host address must be static. If the host address changes Homebridge looses connection with Home App and only Homebridge restart restores the connection.
+This is not plugin dependency but its good to know that Homebridge server host address must be static. If the host address changes then Homebridge looses connection with Home App and only Homebridge restart restores the connection.
 
 ## Supported devices
 
-* GREE Air Conditioners with WiFi support (hardware version v1.x.x and v2.x.x)
+* GREE Air Conditioners with WiFi support (hardware version v1.x.x, v2.x.x and v3.x.x)
 * May work with other GREE compatible AC units (e.g. Sinclair)
     * Successfully tested with Sinclair SIH-13BITW
  
@@ -60,10 +60,8 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Additional device functions (e.g. health mode, sleep, SE) are not supported.
 * Horizontal swing control is not supported, it remains the same as set directly on the device.
 * GREE AC units do not support temperature ranges in auto mode, so temperature ranges have zero length in Home App.
-* GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App).
-* Not all half a degree values are supported in °C mode (GREE AC units are designed to support only integer °C and °F values). Unsupported values are automatically updated to the nearest supported values.
+* GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App). To avoid this inconsistency it is recommended to set the **temperatureStepSize** configuration parameter to 1, when the AC unit is used in Celsius display mode, and to 0.5 in Fahrenheit display mode. The most convenient version is to use the Home App device (e.g. iPhone) in the same temperature display mode as the AC unit and to set the temperatureStepSize parameter to the appropriate value also.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
-* Cooling / Heating temperature threshold limits (minimum and maximum values) can only be set in active cooling / heating mode. So the gauge in Home App may show invalid minimum and maximum values for the first use of cooling and heating modes. If so please restart Home App. Next time the correct values will be displayed. (See more in [Tips section](#how-to-restart-home-app))
 * Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
 
 ## Installation instructions
@@ -78,6 +76,38 @@ If successfully installed and configured, your devices will appear on the Homebr
 
 ## Upgrade
 
+Always check out your current settings in Homebridge and also in Home App (including scenes and automation rules) before you start an upgrade!
+
+### v2.1.2 - v2.1.5 to v2.1.6
+
+The upgrade is automatic by installing the latest version but configuration settings should be updated.
+
+#### Configuration update steps
+
+- <ins>Recommended:</ins> Using the graphical user interface of Homebridge ([Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x))
+  - Open plugin configuration
+  - Review and update settings if needed
+  - If you have changed the 'Temperature step size' parameter to 1
+    - Set each device (with value 1) to disabled
+    - Save changes
+    - Restart Homebridge
+    - Wait until all devices are listed in the log as skipped
+    - Set devices to enabled
+  - Save changes
+  - Restart Homebridge
+  - If any device was disabled and re-enabled in previous steps then recreate automations _(automations are lost when you disable a device)_
+- **OR** <ins>Alternative:</ins> Edit the configuration file directly _(Needed only if temperatureStepSize should be added with value 1)_
+  - Add the following parameter to each devices in the devices section:
+    - temperatureStepSize _(device disabling and re-enabling is needed if value is set to 1)_
+      - Change "disabled" to true
+      - Save changes
+      - Restart Homebridge
+      - Wait until all devices are listed in the log as skipped
+      - Change "disabled" to false
+  - Save changes
+  - Restart Homebridge
+  - If any device was disabled and re-enabled in previous steps then recreate automations _(automations are lost when you disable a device)_
+
 ### v2.0.0 - v2.1.1 to v2.1.2 or later
 
 The upgrade is automatic by installing the latest version but configuration settings should be updated.
@@ -85,20 +115,35 @@ The upgrade is automatic by installing the latest version but configuration sett
 #### Configuration update steps
 
 - <ins>Recommended:</ins> Using the graphical user interface of Homebridge ([Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x))
-  1) Open plugin configuration
-  1) Review and update settings if needed
-  1) Save changes _(pressing the Save button is required to update the configuration to new version even if no changes needed in the displayed values)_
-  1) Restart Homebridge
+  - Open plugin configuration
+  - Review and update settings if needed
+  - Save changes _(pressing the Save button is required to update the configuration to new version even if no changes needed in the displayed values)_
+    - if 'Temperature step size' parameter is set to 1 _(available in version v2.1.6 and later)_ then device disabling and re-enabling is needed:
+      - Set each device (with value 1) to disabled
+      - Save changes
+      - Restart Homebridge
+      - Wait until all devices are listed in the log as skipped
+      - Set devices to enabled
+  - Restart Homebridge
+  - If any device was disabled and re-enabled in previous steps then recreate automations _(automations are lost when you disable a device)_
 - **OR** <ins>Alternative:</ins> Edit the configuration file directly
-  1) Remove the following parameters from the platform section:
-     - port _(it may be kept if you want to set the UDP port manually)_
-     - scanAddress
-     - scanCount
-     - scanTimeout
-  1) Optionally you can add the following parameter to the platform section:
-     - scanInterval _(default is 60 if missing, needed only if other value required)_
-  1) Save changes
-  1) Restart Homebridge
+  - Remove the following parameters from the platform's main section:
+    - port _(it may be kept if you want to set the UDP port manually)_
+    - scanAddress
+    - scanCount
+    - scanTimeout
+  - Optionally you can add the following parameter to the platform's main section:
+    - scanInterval _(default is 60 if missing, needed only if other value required)_
+  - Optionally you can add the following parameter to each devices in the devices section _(available in version v2.1.6 and later)_:
+    - temperatureStepSize _(device disabling and re-enabling is needed if value is set to 1)_
+      - Change "disabled" to true
+      - Save changes
+      - Restart Homebridge
+      - Wait until all devices are listed in the log as skipped
+      - Change "disabled" to false
+  - Save changes
+  - Restart Homebridge
+  - If any device was disabled and re-enabled in previous steps then recreate automations _(automations are lost when you disable a device)_
 
 ### v1.x.x to v2.0.0 or later
 
@@ -107,10 +152,10 @@ There is no clean way to update the plugin to release v2.0.0 or later if you are
 #### Upgrade steps
 
 1. Check out your current settings in Homebridge and also in Home App (including scenes and automation rules)
-2. Uninstall the old version (this will remove all settings also)
-3. Install the new version
-4. Configure plugin in Homebridge
-5. Assign accessories to rooms and recreate scenes and automations in Home App
+1. Uninstall the old version (this will remove all settings also)
+1. Install the new version
+1. Configure plugin in Homebridge
+1. Assign accessories to rooms and recreate scenes and automations in Home App
 
 ## Example configuration
 _Only the relevant part of the configuration file is displayed:_
@@ -126,7 +171,7 @@ _Only the relevant part of the configuration file is displayed:_
                     "mac": "502cc6000000",
                     "name": "Living room AC",
                     "ip": "192.168.1.2",
-                    "port": 7003
+                    "port": 7003,
                     "statusUpdateInterval": 10,
                     "encryptionVersion": 0,
                     "model": "Pulse 3.2kW GWH12AGB-K6DNA1A/I",
@@ -134,6 +179,7 @@ _Only the relevant part of the configuration file is displayed:_
                     "minimumTargetTemperature": 16,
                     "maximumTargetTemperature": 30,
                     "sensorOffset": 40,
+                    "temperatureStepSize": 1,
                     "temperatureSensor": "disabled",
                     "xFanEnabled": true,
                     "overrideDefaultVerticalSwing": 0,
@@ -152,21 +198,24 @@ _It's not recommended to add the port and ip parameters. The above example conta
 * scanInterval - time period in seconds between device query retries (defaults to 60 sec if missing)
 * devices - devices should be listed in this block (specify as many devices as you have on your network)
   * mac - MAC address (Serial Number) of the device
-  * name - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis.
+  * name* - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis.
   * ip - device IP address (optional) Address is auto detected if this parameter is missing. **Specify only if device is located on a different subnet then homebridge!**
   * port - free UDP port (optional) (plugin will listen on this port for data received from the device; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
   * statusUpdateInterval - device status will be refreshed based on this interval (in seconds, default is 10 seconds)
   * encryptionVersion - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication
-  * model - model name, information only (optional)
-  * speedSteps - fan speed steps of the unit (valid values are: 3 and 5)
-  * minimumTargetTemperature - minimum target temperature accepted by the device (default is 16 °C, must be specified in °C, valid values: 16-30)
-  * maximumTargetTemperature - maximum target temperature accepted by the device (default is 30 °C, must be specified in °C, valid values: 16-30)
+  * model* - model name, information only (optional)
+  * speedSteps* - fan speed steps of the unit (valid values are: 3 and 5)
+  * minimumTargetTemperature* - minimum target temperature accepted by the device (default is 16 °C, must be specified in °C, valid values: 8-30, values less than 16 work only in heating mode and on selected models only)
+  * maximumTargetTemperature* - maximum target temperature accepted by the device (default is 30 °C, must be specified in °C, valid values: 8-30, values less than 16 work only in heating mode and on selected models only)
   * sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in °C)
-  * temperatureSensor - control additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
+  * temperatureStepSize* - numeric parameter, valid values: 0.5 and 1 (defaults to 0.5 if missing) Controls the acceptable temperature values in Home App (It is recommended to set it to 1 if Celsius display mode is used on the AC unit and 0.5 in Fahrenheit display mode.)
+  * temperatureSensor - controls additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
   * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
   * overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never (0) = turn off override, let device use default / After power on (1) = override default position on each power on / After power on and swing disable (2) = override default position on each power on and each time when swing is switched to disabled)
   * defaultVerticalSwing - specify the vertical swing position to be used instead of device default when overriding is enabled (Device default (0) = use device default, same position as used by device by default without overriding / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6))
   * disabled - set to true if you do not want to control this device in the Home App _(can be used also to temporarily remove the device from Home App but not if the device is not responding any more on the network)_
+
+(*) these parameters are initalized only once on device enable; device must be disabled an re-enabled to apply a new value
 
 Recommended configuration:
 
@@ -197,12 +246,18 @@ Unfortunaltely if you have multiple devices you will not know which MAC address 
 ### Device settings
 
 Some settings are initialized by Home App only once (when enabling the device). They can only be changed by disabling and re-enabling the device. The following settings are affected:
-
 * name
 * model
 * speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+* temperatureStepSize
+
+Changes of the above parameters are ignored until the device is disabled and re-enabled.
 
 All other settings are applied when starting up Homebridge. You have to restart Homebridge to apply changes in configuration settings.
+
+__Keep in mind that disabling the device removes all associated automations from the Home App.__
 
 ### IP address
 
@@ -215,11 +270,13 @@ Network communication uses UDP ports. There are two kind of ports:
 - Plugin port. This port is used by the plugin to communicate on the network.
 - Device specific port. The plugin is listening for data received from the device using this port.
 
-All ports are set up automatically by default. In some cases auto detection is not appropriate. (E.g. when firewall rules should be set up) It is possible to overwrite the default ports by optional port parameters (for the plugin and also for each devices). _Note that the ports must be unique._
+All ports are set up automatically by default. In some cases auto detection is not appropriate. (E.g. when firewall rules should be set up) It is possible to overwrite the default ports by optional port parameters (for the plugin and also for each devices). _Note that the ports must be unique and not used by other applications._
 
 ### Temperature display units
 
-Home App allows to set the device temperature display units but it is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device (e.g. iPhone).
+Home App allows to set the device temperature display units but it is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/iPadOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device (e.g. iPhone).
+
+GREE Air Conditioners do not support displaying decimals of temperature values. If you normally use the AC unit in Celsius display mode then it is recommended to use also the Home App device (e.g. iPhone) in Celsius mode and set the temperatureStepSize parameter to 1. Fahrenheit mode recommends the same consistency (Fahrenheit mode on both sides and temperatureStepSize parameter set to 0.5) This helps to avoid displaying inconsistent values on the connected devices.
 
 ### Temperature measurement
 
@@ -237,7 +294,7 @@ Fan speed is adjustable on the Heater Cooler's settings page in Home App. There 
 
 Slider description: Zero means off. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High)
 
-** these values are supported only on 5-speed models
+(**) these values are supported only on 5-speed models
 
 ### Accessory removal
 
@@ -255,7 +312,9 @@ On some platforms the graphical user interface of Homebridge does not support ac
 
 ### How to restart Home App
 
-Some settings are updated only after Home App restart (e.g. Heating / Cooling threshold limits). Restarting the Home App means you have to remove it from memory and start again. This is possible by restarting the device (e.g. iPhone), or by quitting the app. On iPhone these steps are required to quit the app:
+Some settings are updated only after Home App restart. Restarting the Home App means you have to remove it from memory and start again.
+
+On iPhone these steps are required to quit the app:
 1) From the Home Screen, swipe up from the bottom of the screen and pause in the middle of the screen.
 1) Swipe right or left to find the app that you want to close.
 1) Swipe up on the app's preview to close the app.
@@ -264,9 +323,21 @@ On iPad follow these steps to quit the app:
 1) Swipe up from the bottom of the screen and hold. You will see all open apps and their preview.
 1) Swipe horizontally to find the app you wish to close. Finally, swipe up on an app card to force quit it.
 
+Sometimes Home App restart does not update the changed settings. In this case restarting the Home App device (e.g. iPhone) can help.
+
+**Keep in mind that some settings are updated in Homebridge only once when the device is enabled. If you change one of these settings you have to disable and re-enable the device to tell Homebridge the new value. Home App can update the value only if Homebridge already knows the new value. See [Device settings](#device-settings)**
+
+### Temperature step size
+
+There is a configuration parameter (temperatureStepSize; available in version v2.1.6 and later) which controls the selectable target temperature values in Home App. There are two valid values:
+- 0.5 -> this is designed for Fahrenheit temperature units
+- 1 -> this is designed for Celsius temperature units
+
+It is recommended to use the appropriate value to let Home App work consistently with GREE Air Conditioner units. GREE AC units do not support decimals of temperature values.
+
 ### Troubleshouting
 
-Most known errors are fixed by later versions. If so yo can upgrade to the latest version and it will solve the problem. Some errors may require some additional steps.
+Most known errors are fixed by later versions. If so you can upgrade to the latest version and it will solve the problem. Some errors may require some additional steps.
 
 #### "Failed to save cached accessories to disk: Converting circular structure to JSON" error
 
@@ -283,13 +354,19 @@ This error is fixed in v2.1.2 and later. First upgrade the plugin to the latest 
 
 Do not try to restore Homebridge configuration from backup because this error means that the cached configuration is corrupt and all the backups contain also the corrupt configuration! Restoring settings from backup will restore the error also.
 
+#### "Characteristic '... Threshold Temperature': characteristic was supplied illegal value ..."
+
+This message is displayed only in debug log and is usually followed by an error message. These messages can safely ignored. They are telling that GREE Heating / Cooling threshold limits are more restrictive than Apple's default values.
+
 #### Unusual behaviour
 
 Check if you are using the correct version of configuration settings. It is always recommended to open and save the actual configuration settings using the graphical user interface of Homebridge. Pressing the Save button on the GUI automatically converts the configuration settings to the actual version. It is useful to re-save the configuration after each upgrade or downgrade even if there are no visible changes in the parameters.
 
 #### Device not responding
 
-If an AC unit device is not supported it may be added successfully to the Home App as an accessory but never appears the "Device is bound ..." message in the Homebridge log. Unbound devices can't respond to network requests so they are unresponsive in Home App. There is no way to decide if the unresponsive device is only turned off (no AC power) or it has a not supported firmware version. It means that a missing error message does not mean that the device is supported. You can check the Homebrdige log. All supported devices write a "Device is bound ..." message into the Homebridge log after successful configuration upon Homebridge startup.
+Versions earlier than v2.1.4 could add AC unit devices to Home App as an accessory when the device was detected but could not be bound (e.g. unsupported device). If you are using a version earlier than v2.1.4 and encounter this issue please upgrade to the latest version, then disable and re-enable your device.
+
+Versions v2.1.4 and later check binding before Home App registration and do not add unsupported devices to Home App. If you have a device which is not responding then it is probably not working (e.g. unplugged power cord or hardware failure) or is malfunctioning. Usually a device restart solves the problem (removing power from the device by unplugging or by using a hardware switch and after a few minutes restoring power).
 
 ## Refs & Credits
 

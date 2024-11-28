@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.1.6] - 2024-11-28
+
+**<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+The following configuration parameters are applied only once, when the device is enabled:
+* name
+* model
+* speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+* temperatureStepSize
+
+Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device removes all associated automations from the Home App.
+
+### Updates
+- Extended heating threshold temperature range: 8°C~30°C (works only on selected models)
+
+### New features
+- Added new configuration parameter: temperatureStepSize
+
+### Fixes
+- Fixed heating / cooling threshold minimum and maximum value settings on accessory initialization
+- Heating / Cooling threshold temperature handling has aligned to physical AC unit capabilities
+
 ## [2.1.5] - 2024-11-12
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
