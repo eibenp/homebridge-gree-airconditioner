@@ -2,7 +2,7 @@
 
 ## [2.1.7] - 2024-12-27
 
-**Unlisted devices are not skipped any more if they are on the same subnet. If you want to skip them please add these devices to the configuration and set the disabled parameter to true!**
+**Unlisted devices are not skipped any more if they are on the same subnet. If you want to skip them please add these devices to the configuration and set the "disabled" parameter to true!**
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
 
