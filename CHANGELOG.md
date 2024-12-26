@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.1.7] - 2024-12-27
+
+**Unlisted devices are not skipped any more if they are on the same subnet. If you want to skip them please add these devices to the configuration and set the disabled parameter to true!**
+
+**<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+The following configuration parameters are applied only once, when the device is enabled:
+* name
+* model
+* speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+* temperatureStepSize
+
+Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device breaks all associated automations in Home App also.
+
+### Updates
+- Addig all devices to the configuration is not needed any more.
+
+Starting from version 2.1.7 all devices on the same subnet are detected and used automatically. Addig a device to the configuration is required only if default configuration is not appropriate. Please see the documentation to check default device parameters!
+
 ## [2.1.6] - 2024-11-28
 
 **<ins>Reminder:</ins> New (v2) network encryption protocol supported since v2.1.0**
@@ -13,7 +35,7 @@ The following configuration parameters are applied only once, when the device is
 * maximumTargetTemperature
 * temperatureStepSize
 
-Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device removes all associated automations from the Home App.
+Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device breaks all associated automations in Home App also.
 
 ### Updates
 - Extended heating threshold temperature range: 8°C~30°C (works only on selected models)

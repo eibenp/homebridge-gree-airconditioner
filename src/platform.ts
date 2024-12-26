@@ -2,6 +2,7 @@ import dgram from 'dgram';
 import crypto from './crypto';
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic, Categories } from 'homebridge';
 import { networkInterfaces } from 'os';
+import { readFileSync } from 'fs';
 
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION, TS_TYPE,
   DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS} from './settings';
@@ -30,6 +31,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   private socket: dgram.Socket;
   private pluginAddresses: Record<string, string> = {};
   public ports: number[] = [];
+  private tempUnit: string;
 
   constructor(
     public readonly log: Logger,
@@ -53,6 +55,15 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.socket.on('close', () => {
       this.log.debug('Network - Connection closed');
     });
+    // get temperature unit from Homebridge UI config
+    const configPath = this.api.user.configPath();
+    const cfg = JSON.parse(readFileSync(configPath).toString());
+    const configPlatform = cfg?.platforms?.find((item) => item.platform === 'config') || {};
+    this.tempUnit = configPlatform?.tempUnits || 'f';
+    if (!['f', 'c'].includes(this.tempUnit)) {
+      this.tempUnit = 'f';
+    }
+    this.log.debug(`Temperature display unit is ${this.tempUnit === 'f' ? 'Fahrenheit (°F)' : 'Celsius (°C)'}`);
     this.log.debug('Finished initializing platform');
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -103,7 +114,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   bindCallback() {
-    this.log.info(`${PLATFORM_NAME} (${PLUGIN_NAME}) v%s is running on UDP port %d`, version, this.socket.address().port);
+    this.log.success(`${PLATFORM_NAME} (${PLUGIN_NAME}) v%s is running on UDP port %d`, version, this.socket.address().port);
     this.ports.push(this.socket.address().port);
     this.socket.setBroadcast(true);
     this.sendScan();
@@ -204,6 +215,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       this.log.warn('Warning: Invalid minimum and maximum target temperature values detected ->',
         `Accessory ${deviceInfo.mac} is using default values instead of the configured ones`);
     }
+    if (deviceConfig.temperatureStepSize === undefined && this.tempUnit === 'c') {
+      deviceConfig.temperatureStepSize = TEMPERATURE_STEPS.celsius;
+    }
+    if (deviceConfig.temperatureStepSize === undefined && this.tempUnit === 'f') {
+      deviceConfig.temperatureStepSize = TEMPERATURE_STEPS.fahrenheit;
+    }
     if (deviceConfig.temperatureStepSize !== undefined && !Object.values(TEMPERATURE_STEPS).includes(deviceConfig.temperatureStepSize)) {
       this.log.warn(`Warning: Invalid temperature step size detected: ${deviceConfig.temperatureStepSize} ->`,
         `Accessory ${deviceInfo.mac} is using default value (0.5) instead of the configured one`);
@@ -218,7 +235,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       (typeof deviceConfig.port === 'number' && (deviceConfig.port < 1025 || deviceConfig.port > 65535)))) {
       this.log.warn('Warning: Port is misconfigured (Valid port values: 1025~65535 or leave port empty to auto select) - ' +
         `Accessory ${deviceInfo.mac} listening port overridden: ${deviceConfig.port} -> auto`);
-      deviceConfig.port = undefined;
+      delete deviceConfig.port;
     }
     // force encryption version if set in config
     if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {
@@ -228,12 +245,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     let accessory: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac];
     let accessory_ts: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac + '_ts'];
 
-    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig.mac)) {
+    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig?.mac || '000000000000')) { //do not skip unconfigured devices
       if (!this.skippedDevices[deviceInfo.mac]) {
-        this.log.info(`Accessory ${deviceInfo.mac}${devcfg.mac === undefined ? ' not configured -' : ''} skipped`);
+        this.log.info(`Accessory ${deviceInfo.mac} skipped`);
         this.skippedDevices[deviceInfo.mac] = true;
       } else {
-        this.log.debug(`Accessory ${deviceInfo.mac}${devcfg.mac === undefined ? ' not configured -' : ''} skipped`);
+        this.log.debug(`Accessory ${deviceInfo.mac} skipped`);
       }
       if (accessory) {
         delete this.devices[accessory.context.device.mac];
@@ -307,7 +324,6 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       if (deviceConfig.model) {
         accessory_ts.context.device.model = deviceConfig.model;
       }
-      accessory_ts.displayName = tsDeviceName;
       this.processedDevices[accessory_ts.UUID] = true;
       this.log.debug(`registerDevice - ${accessory_ts.context.deviceType} created:`, accessory_ts.displayName,
         accessory_ts.context.device.mac, accessory_ts.UUID);
@@ -318,7 +334,6 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       // mark heatercooler device as processed
       accessory.context.device = deviceInfo;
       accessory.context.deviceType = 'HeaterCooler';
-      accessory.displayName = deviceName;
       this.processedDevices[accessory.UUID] = true;
       this.log.debug(`registerDevice - ${accessory.context.deviceType} created:`, accessory.displayName,
         accessory.context.device.mac, accessory.UUID);

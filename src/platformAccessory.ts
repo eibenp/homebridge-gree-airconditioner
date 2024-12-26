@@ -215,6 +215,10 @@ export class GreeAirConditioner {
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .onGet(this.getRotationSpeed.bind(this))
       .onSet(this.setRotationSpeed.bind(this));
+
+    // register handlers for the Name Characteristic
+    this.HeaterCooler.getCharacteristic(this.platform.Characteristic.Name)
+      .onGet(this.getName.bind(this));
   }
 
   // this function is a callback to check the status of binding after timeout period has ellapsed
@@ -485,6 +489,12 @@ export class GreeAirConditioner {
     }
     this.platform.log.debug(`[${this.getDeviceLabel()}] Get RotationSpeed ->`, value + ' (' + logValue + ')');
     return value;
+  }
+
+  async getName(): Promise<CharacteristicValue> {
+    //this.platform.api.updatePlatformAccessories([this.accessory]);
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get Name ->`, this.accessory.displayName);
+    return this.accessory.displayName;
   }
 
   // helper functions
@@ -1047,7 +1057,7 @@ export class GreeAirConditioner {
             this.key = pack.key;
             this.initAccessory();
             this.accessory.bound = true;
-            this.platform.log.info(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac}`);
+            this.platform.log.success(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac}`);
             this.platform.log.debug(`[${this.getDeviceLabel()}] Device key -> ${this.key}`);
             this.requestDeviceStatus();
             setInterval(this.requestDeviceStatus.bind(this),

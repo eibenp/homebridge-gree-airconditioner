@@ -7,21 +7,21 @@
 > 
 > Please read the [**Upgrade section**](#upgrade) before upgrading from version earlier than **v2.0.0** !
 >
-> _It is also recommended to read the upgrade section before any upgrade. It contains useful information regarding the latest version._
+> _It is also recommended to read the [upgrade section](#upgrade) before any upgrade. It contains useful information regarding the latest version._
 
 # Homebridge GREE Air Conditioner Platform Plugin
 
-[Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home App](https://www.apple.com/home-app/). (Makes GREE Air Conditioner HomeKit compatible.)
+[Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home App](https://www.apple.com/home-app/). (Makes GREE Air Conditioners HomeKit compatible.)
 
-You can add all of your GREE Air Conditioner devices to the Home App by specifying the device's MAC address, and Homebridge will find all connected devices. Each device appears in the Home App as a Heater Cooler device. It is also possible to add a separate Termperature Sensor (if temperature sensor is supported by the physical device). This allows to define automations (e.g. turn on) based on current temperature in the room. Be careful, if the device does not support internal temperature sensor but is added as a separate accessory, Home App will display the target temperature not the measured one. Child accessory does not appear in Home App if physical sensor is not available in the AC unit.
+The plugin finds and adds all GREE Air Conditioner devices to the Home App automatically if they are located on the same subnet as Homebridge. In most cases only a minimal configuration is required. If default configuration is not appropriate the parameters can be customized. To customize a device you have to specify it's MAC address. Each device appears in the Home App as a Heater Cooler device. It is also possible to add a separate Temperature Sensor (if temperature sensor is supported by the physical device). This allows to define automations (e.g. turn on) based on current temperature in the room. _Be careful, if the device does not support internal temperature sensor but is added as a separate accessory, Home App will use the target temperature not the measured one._ Child accessory does not appear in Home App if physical sensor is not available in the AC unit.
 
 Quiet / Auto / Powerful mode is supported by the fan speed control. Zero means off. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High)
 
 (**) these values are supported only on 5-speed models
 
-All devices must be added to the Homebridge configuration. Devices are identified by MAC Address (Serial Number). It can be queried using the official [GREE+ mobile app](https://apps.apple.com/us/app/gree/id1167857672). (The app is required to connect the devices to the local WiFi network for the first time.) If an AC unit's MAC address is not added to the configuration then it will be skipped by the plugin. You can also skip a device by adding it to the configuration and setting the "disabled" parameter to true. _(This is useful if you want to temporarily remove the device but you want to keep it's parameters, e.g. changing the name or temperature step size is not possible without removal.)_
+Devices are identified by MAC Address (Serial Number). It can be queried using the official [GREE+ mobile app](https://apps.apple.com/us/app/gree/id1167857672). (The app is required to connect the devices to the local WiFi network for the first time.) If you want to customize a device (e.g. set a custom name) then you have to add it to the configuration and specify it's MAC address. Adding a device located on a different subnet also requires to add the device to the configuration and specify the MAC address and the IP address. To skip a device from Home App also requires to add it's MAC address to the configuration and set the "disabled" parameter to true. Some parameters are changeable only by disabling and re-enabling the device because they are read by Home App only once. _(These parameters are discussed later.)_
 
-xFan function is also supported, but it works automatically if enabled in Homebridge configuration. If xFan is enabled for the device, it is automatically turned on when you select a supported operating mode in Home App. If xFan is disabled, the Home App will not modify its actual setting in any case.
+xFan function is supported, but it works automatically if enabled in Homebridge configuration. If xFan is enabled for the device, it is automatically turned on when you select a supported operating mode in Home App. If xFan is disabled, the Home App will not modify its actual setting in any case.
 
 Temperature display units of the physical device can be controlled using the Home App. (Configuration settings are required to be specified always in Degrees Celsius, independently from the display units.)
 
@@ -34,7 +34,7 @@ This plugin is designed to be as simple and clear as possible and supports prima
 * Node.js (>= 18.15.0 || >= 20.7.0 || >= 22.0.0) with NPM
 * Homebridge (>= 1.8.0 || >= 2.0.0-beta.0)
 
-The plugin finds all supported units automatically if they are located on the same subnet but controls only those which MAC address is added to the configuration. AC units on different subnets are also supported if the unit's IP address is set in the configuration. (MAC address have to be set correctly in this case also.)
+The plugin finds all supported units automatically if they are located on the same subnet. AC units on different subnets are also supported if the unit's IP address is set in the configuration. (MAC address have to be set correctly also.)
 
 IPv4 address is required. GREE Air Conditioners do not support IPv6 nor other network protocols.
 
@@ -60,7 +60,7 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * Additional device functions (e.g. health mode, sleep, SE) are not supported.
 * Horizontal swing control is not supported, it remains the same as set directly on the device.
 * GREE AC units do not support temperature ranges in auto mode, so temperature ranges have zero length in Home App.
-* GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App). To avoid this inconsistency it is recommended to set the **temperatureStepSize** configuration parameter to 1, when the AC unit is used in Celsius display mode, and to 0.5 in Fahrenheit display mode. The most convenient version is to use the Home App device (e.g. iPhone) in the same temperature display mode as the AC unit and to set the temperatureStepSize parameter to the appropriate value also.
+* GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App). To avoid this inconsistency it is recommended to set the **temperatureStepSize** configuration parameter to 1, when the AC unit is used in Celsius display mode, and to 0.5 in Fahrenheit display mode. The most convenient version is to use the Home App device (e.g. iPhone) in the same temperature display mode as the AC unit and to set the temperatureStepSize parameter to the appropriate value also. Set Homebridge UI to the same temperature units.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
 
@@ -77,6 +77,12 @@ If successfully installed and configured, your devices will appear on the Homebr
 ## Upgrade
 
 Always check out your current settings in Homebridge and also in Home App (including scenes and automation rules) before you start an upgrade!
+
+### Any version to v2.1.7
+
+The upgrade is automatic by installing the latest version. If upgrading from v2.1.6 no configuration changes are needed. Please see the following upgrade sections if upgrading from an earlier version.
+
+**Important change: All devices are automatically added to Home App if they are not listed and disabled in configuration and they are located on the same subnet.** Earlier versions skipped the devices which were not found in configuration file.
 
 ### v2.1.2 - v2.1.5 to v2.1.6
 
@@ -158,7 +164,33 @@ There is no clean way to update the plugin to release v2.0.0 or later if you are
 1. Assign accessories to rooms and recreate scenes and automations in Home App
 
 ## Example configuration
+
 _Only the relevant part of the configuration file is displayed:_
+
+### Minimal configuration
+
+Minimal configuration requires no special knowledge and uses default values for all devices.
+
+```
+    "platforms": [
+        {
+            "name": "Gree Air Conditioner",
+            "platform": "GREEAirConditioner",
+        }
+    ]
+```
+
+* name - Unique name of the platform plugin
+* platform - **GREEAirConditioner** (fixed name, it identifies the plugin)
+
+Minimal configuration is appropriate for 5-speed models. Device names are read from the AC units (usually the MAC address or part of the MAC address). Target temperature can be set between 16 and 30 °C. The temperature display units settings are read from the UI settings (or using Fahrenheit if not set in UI configuration). Target temperature step size is set to 0.5 in Fahrenheit mode and 1 in Celsius mode. xFan function is enabled. No other special features (e.g. additional temperature sensor) are enabled.
+
+Minimal configuration:
+
+![Homebridge UI](./uiconfigmin.jpg)
+
+### Full configuration
+
 ```
     "platforms": [
         {
@@ -196,9 +228,9 @@ _It's not recommended to add the port and ip parameters. The above example conta
 * platform - **GREEAirConditioner** (fixed name, it identifies the plugin)
 * port - free UDP port (optional) (plugin will use this port for network communication; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
 * scanInterval - time period in seconds between device query retries (defaults to 60 sec if missing)
-* devices - devices should be listed in this block (specify as many devices as you have on your network)
-  * mac - MAC address (Serial Number) of the device
-  * name* - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis.
+* devices - devices should be listed in this block (specify as many devices as you want to customize or disable)
+  * mac - MAC address (Serial Number) of the device (required to identify the device, also if only one device exists)
+  * name* - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis. (The name is changeable in Home App and any changes made in Home App are kept until the device is disabled which removes it from Home App.)
   * ip - device IP address (optional) Address is auto detected if this parameter is missing. **Specify only if device is located on a different subnet then homebridge!**
   * port - free UDP port (optional) (plugin will listen on this port for data received from the device; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
   * statusUpdateInterval - device status will be refreshed based on this interval (in seconds, default is 10 seconds)
@@ -208,7 +240,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * minimumTargetTemperature* - minimum target temperature accepted by the device (default is 16 °C, must be specified in °C, valid values: 8-30, values less than 16 work only in heating mode and on selected models only)
   * maximumTargetTemperature* - maximum target temperature accepted by the device (default is 30 °C, must be specified in °C, valid values: 8-30, values less than 16 work only in heating mode and on selected models only)
   * sensorOffset - device temperature sensor offset value for current temperature calibration (default is 40 °C, must be specified in °C)
-  * temperatureStepSize* - numeric parameter, valid values: 0.5 and 1 (defaults to 0.5 if missing) Controls the acceptable temperature values in Home App (It is recommended to set it to 1 if Celsius display mode is used on the AC unit and 0.5 in Fahrenheit display mode.)
+  * temperatureStepSize* - numeric parameter, valid values: 0.5 and 1 (if missing then default value is based on the UI configuration: 0.5 if UI is set to Fahrenheit temperature units and 1 if UI is set to Celsius temperature units) Controls the acceptable temperature values in Home App (It is recommended to set it to 1 if Celsius display mode is used on the AC unit and 0.5 in Fahrenheit display mode.)
   * temperatureSensor - controls additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory)
   * xFanEnabled - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
   * overrideDefaultVerticalSwing - by default this plugin does not change the vertical swing position of the AC unit but some devices do not keep the original vertical position set by the remote control if controlled from Homebridge and return back to device default position; this setting allows to override the default position -> if AC unit is set to default vertical swing position Homebridge modifies it to a predefined position (set by defaultVerticalSwing) (Never (0) = turn off override, let device use default / After power on (1) = override default position on each power on / After power on and swing disable (2) = override default position on each power on and each time when swing is switched to disabled)
@@ -217,7 +249,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
 
 (*) these parameters are initalized only once on device enable; device must be disabled an re-enabled to apply a new value
 
-Recommended configuration:
+Recommended customized configuration:
 
 ![Homebridge UI](./uiconfig.jpg)
 
@@ -234,14 +266,11 @@ Open selected device and in the upper right corner select menu symbol:
 If you are not familiar with the GREE+ mobile app there is an alternative method to detect the MAC address of your devices:
 
 - Install the plugin
-- Do not configure AC unit devices
+- Do not configure any AC unit devices (e.g. use minimal configuration)
 - (Re)start Homebridge
 - GREE Air Conditioner Platform Plugin will auto detect all accessible devices and write an entry to the log
-- The log entry contains the MAC address of the device E.g.: MAC address is 502cc6000000 in the following log entry:
 
-> Accessory **502cc6000000** not configured - skipped
-
-Unfortunaltely if you have multiple devices you will not know which MAC address belongs to which AC unit. In this case you have to test it. This may require some adding - removal - re-adding cycle before final configuration.
+Unfortunaltely if you have multiple devices you will not know which MAC address belongs to which AC unit. In this case you have to test it. This may require some adding - removal - re-adding cycle before final configuration if default configuration is not appropriate.
 
 ### Device settings
 
@@ -257,7 +286,7 @@ Changes of the above parameters are ignored until the device is disabled and re-
 
 All other settings are applied when starting up Homebridge. You have to restart Homebridge to apply changes in configuration settings.
 
-__Keep in mind that disabling the device removes all associated automations from the Home App.__
+__Keep in mind that disabling the device breaks all associated automations in Home App.__
 
 ### IP address
 
@@ -276,7 +305,7 @@ All ports are set up automatically by default. In some cases auto detection is n
 
 Home App allows to set the device temperature display units but it is independent from the temperature units shown in Home App. Home App always displays temperature values as specified by iOS/iPadOS/MacOS (can be changed in Preferences / Regional settings section). Display unit conversion is made by the Home App device (e.g. iPhone).
 
-GREE Air Conditioners do not support displaying decimals of temperature values. If you normally use the AC unit in Celsius display mode then it is recommended to use also the Home App device (e.g. iPhone) in Celsius mode and set the temperatureStepSize parameter to 1. Fahrenheit mode recommends the same consistency (Fahrenheit mode on both sides and temperatureStepSize parameter set to 0.5) This helps to avoid displaying inconsistent values on the connected devices.
+GREE Air Conditioners do not support displaying decimals of temperature values. If you normally use the AC unit in Celsius display mode then it is recommended to use also the Home App device (e.g. iPhone) in Celsius mode and set the temperatureStepSize parameter to 1. Fahrenheit mode recommends the same consistency (Fahrenheit mode on both sides and temperatureStepSize parameter set to 0.5) This helps to avoid displaying inconsistent values on the connected devices. In minimal configuration - when the device is not listed in the configuration file - the temperatureStepSize parameter is based on the Homebridge UI configuration (temperature units parameter).
 
 ### Temperature measurement
 
@@ -334,6 +363,8 @@ There is a configuration parameter (temperatureStepSize; available in version v2
 - 1 -> this is designed for Celsius temperature units
 
 It is recommended to use the appropriate value to let Home App work consistently with GREE Air Conditioner units. GREE AC units do not support decimals of temperature values.
+
+In version v2.1.7 and later if the temperatureStepSize is not specified in the configuration file then it is determined based on the Homebridge UI configuration settings. If the Homebridge UI's temperature units is set to Fahrenheit (°F) then temperatureStepSize defaults to 0.5 and if it is set to Celsius (°C) then temperatureStepSize defaults to 1.
 
 ### Troubleshouting
 
