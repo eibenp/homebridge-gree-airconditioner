@@ -500,7 +500,7 @@ export class GreeAirConditioner {
   // helper functions
 
   getDeviceLabel() {
-    return `${this.accessory.displayName} -- ${this.accessory.context.device.address}:${this.accessory.context.device.port}`;
+    return `${this.accessory.displayName} -- ${this.accessory.context.device.address}`;
   }
 
   getCols() {
