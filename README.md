@@ -175,7 +175,7 @@ Minimal configuration requires no special knowledge and uses default values for 
     "platforms": [
         {
             "name": "Gree Air Conditioner",
-            "platform": "GREEAirConditioner",
+            "platform": "GREEAirConditioner"
         }
     ]
 ```
