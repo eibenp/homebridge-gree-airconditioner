@@ -267,7 +267,7 @@
               "key": "devices[].mac",
               "flex": "1 1 50%",
               "title": "MAC address (Serial Number):",
-              "description": "MAC address of the device using lowercase letters and no separators or special value: default"
+              "description": "MAC address of the device using lowercase letters and no separators<br />OR<br />special value: <b>default</b>"
             },
             {
               "key": "devices[].name",
@@ -370,7 +370,7 @@
               "key": "devices[].temperatureStepSize",
               "flex": "1 1 50%",
               "title": "Temperature step size:",
-              "description": "Valid values: 0.5 (for °F) and 1 (for °C)<BR />(0.5 if empty or invalid)",
+              "description": "Valid values: 0.5 (for °F) and 1 (for °C)<BR />(Calculate from Homebridge UI temperature units parameter if empty or invalid)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }

@@ -151,8 +151,8 @@ export class GreeAirConditioner {
     if (this.deviceConfig.temperatureSensor === TS_TYPE.child) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] Add Temperature Sensor child service`);
       this.TemperatureSensor = this.accessory.getService(this.platform.Service.TemperatureSensor) ||
-        this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor - ' + this.accessory.displayName, undefined);
-      this.TemperatureSensor.displayName = 'Temperature Sensor - ' + this.accessory.displayName;
+        this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor ' + this.accessory.displayName, undefined);
+      this.TemperatureSensor.displayName = 'Temperature Sensor ' + this.accessory.displayName;
     } else {
       const ts = this.accessory.getService(this.platform.Service.TemperatureSensor);
       this.platform.log.debug(`[${this.getDeviceLabel()}] Temperature Sensor child service not allowed`,

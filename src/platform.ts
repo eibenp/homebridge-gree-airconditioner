@@ -184,11 +184,14 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.log.debug('registerDevice - deviceInfo:', JSON.stringify(deviceInfo));
     const devcfg = this.config.devices?.find((item) => item.mac === deviceInfo.mac) || {};
     const deviceConfig = {
+      // parameters read from config
       ...devcfg,
+      // fix incorrect values read from config but do not add any value if parameter is missing
       ...((devcfg.speedSteps && devcfg.speedSteps !== 3 && devcfg.speedSteps !== 5) || devcfg.speedSteps === 0 ?
-        {speedSteps: 5} : {}),
-      ...((devcfg.temperatureSensor && Object.values(TS_TYPE).includes((devcfg.temperatureSensor as string).toLowerCase())) ?
-        {temperatureSensor: (devcfg.temperatureSensor as string).toLowerCase()} : {temperatureSensor: TS_TYPE.disabled}),
+        {speedSteps: DEFAULT_DEVICE_CONFIG.speedSteps} : {}),
+      ...(devcfg.temperatureSensor && Object.values(TS_TYPE).includes((devcfg.temperatureSensor as string).toLowerCase()) ?
+        {temperatureSensor: (devcfg.temperatureSensor as string).toLowerCase()}
+        : (devcfg.temperatureSensor ? {temperatureSensor: DEFAULT_DEVICE_CONFIG.temperatureSensor} : {})),
       ...(devcfg.minimumTargetTemperature &&
         (devcfg.minimumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
         devcfg.minimumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum)) ?
@@ -197,24 +200,23 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         (devcfg.maximumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
         devcfg.maximumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum)) ?
         { maximumTargetTemperature: DEFAULT_DEVICE_CONFIG.maximumTargetTemperature } : {}),
-      ...((devcfg.defaultVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
+      ...(devcfg.defaultVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
         commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
-        commands.swingVertical.value.fixedLowest].includes(devcfg.defaultVerticalSwing)) ?
+        commands.swingVertical.value.fixedLowest].includes(devcfg.defaultVerticalSwing) ?
         { defaultVerticalSwing: DEFAULT_DEVICE_CONFIG.defaultVerticalSwing } : {}),
-      ...((devcfg.overrideDefaultVerticalSwing && !Object.values(OVERRIDE_DEFAULT_SWING).includes(devcfg.overrideDefaultVerticalSwing)) ?
+      ...(devcfg.overrideDefaultVerticalSwing && !Object.values(OVERRIDE_DEFAULT_SWING).includes(devcfg.overrideDefaultVerticalSwing) ?
         { overrideDefaultVerticalSwing: DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing } : {}),
-      ...((devcfg.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(devcfg.encryptionVersion)) ?
+      ...(devcfg.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(devcfg.encryptionVersion) ?
         { encryptionVersion: DEFAULT_DEVICE_CONFIG.encryptionVersion } : {}),
     };
-    if (deviceConfig.minimumTargetTemperature && deviceConfig.maximumTargetTemperature &&
-      deviceConfig.minimumTargetTemperature > deviceConfig.maximumTargetTemperature) {
-      deviceConfig.minimumTargetTemperature =
-        Math.min(DEFAULT_DEVICE_CONFIG.minimumTargetTemperature, DEFAULT_DEVICE_CONFIG.maximumTargetTemperature);
-      deviceConfig.maximumTargetTemperature =
-        Math.max(DEFAULT_DEVICE_CONFIG.minimumTargetTemperature, DEFAULT_DEVICE_CONFIG.maximumTargetTemperature);
-      this.log.warn('Warning: Invalid minimum and maximum target temperature values detected ->',
-        `Accessory ${deviceInfo.mac} is using default values instead of the configured ones`);
-    }
+    // assign customized default to missing parameters
+    Object.entries(this.config.devices?.find((item) => item.mac?.toLowerCase() === 'default' && !item.disabled) || {})
+      .forEach(([key, value]) => {
+        if (!['mac', 'name', 'ip', 'port', 'disabled'].includes(key) && deviceConfig[key] === undefined) {
+          deviceConfig[key] = value;
+        }
+      });
+    // try to assign temperatureStepSize from Homebridge UI if missing in configuration
     if (deviceConfig.temperatureStepSize === undefined && this.tempUnit === 'c') {
       deviceConfig.temperatureStepSize = TEMPERATURE_STEPS.celsius;
     }
@@ -226,19 +228,52 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         `Accessory ${deviceInfo.mac} is using default value (0.5) instead of the configured one`);
       delete deviceConfig.temperatureStepSize;
     }
-    // assign customized default to missing parameters
-    Object.entries(this.config.devices?.find((item) => item.mac?.toLowerCase() === 'default' && !item.disabled) || {})
-      .forEach(([key, value]) => {
-        if (!['mac', 'name', 'ip', 'port'].includes(key) && deviceConfig[key] === undefined) {
-          deviceConfig[key] = value;
-        }
-      });
     // assign plugin default to missing parameters
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {
         deviceConfig[key] = value;
       }
     });
+    // check parameters and fix incorrect values (some of them are repeated checks because default device may also be incorrect)
+    if ((deviceConfig.speedSteps && deviceConfig.speedSteps !== 3 && deviceConfig.speedSteps !== 5) || deviceConfig.speedSteps === 0) {
+      deviceConfig.speedSteps = DEFAULT_DEVICE_CONFIG.speedSteps;
+    }
+    if (deviceConfig.temperatureSensor && Object.values(TS_TYPE).includes((deviceConfig.temperatureSensor as string).toLowerCase())) {
+      deviceConfig.temperatureSensor = (deviceConfig.temperatureSensor as string).toLowerCase();
+    } else {
+      deviceConfig.temperatureSensor = DEFAULT_DEVICE_CONFIG.temperatureSensor;
+    }
+    if (deviceConfig.minimumTargetTemperature &&
+      (deviceConfig.minimumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
+      deviceConfig.minimumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum))) {
+      deviceConfig.minimumTargetTemperature = DEFAULT_DEVICE_CONFIG.minimumTargetTemperature;
+    }
+    if (deviceConfig.maximumTargetTemperature &&
+      (deviceConfig.maximumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
+      deviceConfig.maximumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum))) {
+      deviceConfig.maximumTargetTemperature = DEFAULT_DEVICE_CONFIG.maximumTargetTemperature;
+    }
+    if (deviceConfig.minimumTargetTemperature && deviceConfig.maximumTargetTemperature &&
+      deviceConfig.minimumTargetTemperature > deviceConfig.maximumTargetTemperature) {
+      deviceConfig.minimumTargetTemperature =
+        Math.min(DEFAULT_DEVICE_CONFIG.minimumTargetTemperature, DEFAULT_DEVICE_CONFIG.maximumTargetTemperature);
+      deviceConfig.maximumTargetTemperature =
+        Math.max(DEFAULT_DEVICE_CONFIG.minimumTargetTemperature, DEFAULT_DEVICE_CONFIG.maximumTargetTemperature);
+      this.log.warn('Warning: Invalid minimum and maximum target temperature values detected ->',
+        `Accessory ${deviceInfo.mac} is using default values instead of the configured ones`);
+    }
+    if (deviceConfig.defaultVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
+      commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
+      commands.swingVertical.value.fixedLowest].includes(deviceConfig.defaultVerticalSwing)) {
+      deviceConfig.defaultVerticalSwing = DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
+    }
+    if (deviceConfig.overrideDefaultVerticalSwing &&
+      !Object.values(OVERRIDE_DEFAULT_SWING).includes(deviceConfig.overrideDefaultVerticalSwing)) {
+      deviceConfig.overrideDefaultVerticalSwing = DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing;
+    }
+    if (deviceConfig.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(deviceConfig.encryptionVersion)) {
+      deviceConfig.encryptionVersion = DEFAULT_DEVICE_CONFIG.encryptionVersion;
+    }
     if (deviceConfig.port !== undefined && (typeof deviceConfig.port !== 'number' || deviceConfig.port !== deviceConfig.port ||
       (typeof deviceConfig.port === 'number' && (deviceConfig.port < 1025 || deviceConfig.port > 65535)))) {
       this.log.warn('Warning: Port is misconfigured (Valid port values: 1025~65535 or leave port empty to auto select) - ' +
@@ -250,6 +285,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       deviceInfo.encryptionVersion = deviceConfig.encryptionVersion;
       this.log.debug(`Accessory ${deviceInfo.mac} encryption version forced:`, deviceInfo.encryptionVersion);
     }
+
     let accessory: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac];
     let accessory_ts: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac + '_ts'];
 
@@ -306,7 +342,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
 
     // create temperaturesensor accessory if configured as separate and not loaded from cache
-    const tsDeviceName = 'Temperature Sensor - ' + (deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac));
+    const tsDeviceName = 'Temperature Sensor ' + (deviceConfig?.name ?? (deviceInfo.name || deviceInfo.mac));
     if (!accessory_ts && deviceConfig.temperatureSensor === TS_TYPE.separate) {
       this.log.debug(`Creating new accessory ${deviceInfo.mac}_ts with name ${tsDeviceName} ...`);
       const uuid = this.api.hap.uuid.generate(deviceInfo.mac + '_ts');
