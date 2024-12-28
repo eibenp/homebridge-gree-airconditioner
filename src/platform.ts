@@ -182,7 +182,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
 
   registerDevice = (deviceInfo) => {
     this.log.debug('registerDevice - deviceInfo:', JSON.stringify(deviceInfo));
-    const devcfg = this.config.devices.find((item) => item.mac === deviceInfo.mac) || {};
+    const devcfg = this.config.devices?.find((item) => item.mac === deviceInfo.mac) || {};
     const deviceConfig = {
       ...devcfg,
       ...((devcfg.speedSteps && devcfg.speedSteps !== 3 && devcfg.speedSteps !== 5) || devcfg.speedSteps === 0 ?
@@ -226,6 +226,14 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         `Accessory ${deviceInfo.mac} is using default value (0.5) instead of the configured one`);
       delete deviceConfig.temperatureStepSize;
     }
+    // assign customized default to missing parameters
+    Object.entries(this.config.devices?.find((item) => item.mac?.toLowerCase() === 'default' && !item.disabled) || {})
+      .forEach(([key, value]) => {
+        if (!['mac', 'name', 'ip', 'port'].includes(key) && deviceConfig[key] === undefined) {
+          deviceConfig[key] = value;
+        }
+      });
+    // assign plugin default to missing parameters
     Object.entries(DEFAULT_DEVICE_CONFIG).forEach(([key, value]) => {
       if (deviceConfig[key] === undefined) {
         deviceConfig[key] = value;
@@ -383,7 +391,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
     // Add IPs from configuration but only if at least one host address found
     if (Object.keys(pluginAddresses).length > 0) {
-      const devcfgs:[] = this.config.devices.filter((item) => item.ip && !item.disabled) || [];
+      const devcfgs:[] = this.config.devices?.filter((item) => item.ip && !item.disabled) || [];
       devcfgs.forEach((value) => {
         const ip: string = value['ip'];
         const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})(\.(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})){3}$/;

@@ -29,7 +29,7 @@
             "mac": {
               "type": "string",
               "required": true,
-              "pattern": "^[a-f0-9]{12}$"
+              "pattern": "^[a-f0-9]{12}|default$"
             },
             "name": {
               "type": "string",
@@ -267,13 +267,16 @@
               "key": "devices[].mac",
               "flex": "1 1 50%",
               "title": "MAC address (Serial Number):",
-              "description": "MAC address of the device using lowercase letters and no separators"
+              "description": "MAC address of the device using lowercase letters and no separators or special value: default"
             },
             {
               "key": "devices[].name",
               "flex": "1 1 50%",
               "title": "Device name:",
-              "description": "Custom name of the device. Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis."
+              "description": "Custom name of the device. Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis.",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac));"
+              }
             },
             {
               "key": "devices[].disabled",
@@ -281,7 +284,7 @@
               "title": "Disabled",
               "description": "If checked, this accessory will be removed and ignored from HomeKit.",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac));"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac));"
               }
             },
             {
@@ -308,7 +311,7 @@
               "title": "Status update interval:",
               "description": "Update interval (in seconds)",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -317,7 +320,7 @@
               "title": "Network protocol encryption version:",
               "description": "Leave this on Auto. If Auto doesn't work then set to the desired version.",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -325,7 +328,7 @@
               "flex": "1 1 50%",
               "title": "Device model:",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -333,7 +336,7 @@
               "flex": "1 1 50%",
               "title": "Fan speed steps:",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -342,7 +345,7 @@
               "title": "Minimum target temperature:",
               "description": "Minimum target temperature (in ℃)",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -351,7 +354,7 @@
               "title": "Maximum target temperature:",
               "description": "Maximum target temperature (in ℃)",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -360,7 +363,7 @@
               "title": "Temperature offset:",
               "description": "Temperature sensor calibration (in ℃)",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -369,7 +372,7 @@
               "title": "Temperature step size:",
               "description": "Valid values: 0.5 (for °F) and 1 (for °C)<BR />(0.5 if empty or invalid)",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -378,7 +381,7 @@
               "title": "xFan enabled",
               "description": "If enabled, then xFan functionality is turned on automatically on the device",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -387,7 +390,7 @@
               "title": "Temperature sensor:",
               "description": "Additional temperature sensor in Home App",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -396,7 +399,7 @@
               "title": "Override default vertical position:",
               "description": "When to override vertical swing position",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             },
             {
@@ -405,7 +408,7 @@
               "title": "Vertical position:",
               "description": "Default vertical swing position to be used istead of what device considers a default",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].overrideDefaultVerticalSwing !== 0);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].overrideDefaultVerticalSwing !== 0);"
               }
             }
           ]
