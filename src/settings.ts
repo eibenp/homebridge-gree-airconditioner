@@ -49,9 +49,18 @@ export interface DeviceConfig {
   encryptionVersion?: number;
   port?: number;
   ip?: string;
+  fanControlEnabled?: boolean;
 }
 
-export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
+// in DEFAULT_DEVICE_CONFIG we don't need nullable entries -> override optional entries with required ones
+interface DefaultDeviceConfig extends DeviceConfig {
+  temperatureStepSize: number;
+  defaultVerticalSwing: number;
+  overrideDefaultVerticalSwing: number;
+  encryptionVersion: number;
+}
+
+export const DEFAULT_DEVICE_CONFIG: DefaultDeviceConfig = {
   speedSteps: 5,
   statusUpdateInterval: 10,
   sensorOffset: 40,

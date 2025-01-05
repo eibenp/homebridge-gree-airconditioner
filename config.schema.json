@@ -221,6 +221,9 @@
               "type": "string",
               "required": false,
               "format": "ipv4"
+            },
+            "fanControlEnabled": {
+              "type": "boolean"
             }
           }
         }
@@ -282,7 +285,7 @@
               "key": "devices[].disabled",
               "flex": "1 1 100%",
               "title": "Disabled",
-              "description": "If checked, this accessory will be removed and ignored from HomeKit.",
+              "description": "If checked, this accessory will be removed and ignored by HomeKit",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac));"
               }
@@ -409,6 +412,15 @@
               "description": "Default vertical swing position to be used istead of what device considers a default",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].overrideDefaultVerticalSwing !== 0);"
+              }
+            },
+            {
+              "key": "devices[].fanControlEnabled",
+              "flex": "1 1 100%",
+              "title": "Fan control enabled",
+              "description": "If checked, a fan control is added to Home App and fan mode support is enabled",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
             }
           ]
