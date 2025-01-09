@@ -23,6 +23,7 @@ export class GreeAirConditioner {
   private status: object;
   private tsAccessory: GreeAirConditionerTS | null = null;
   private powerPending = -1;
+  private modePending = -1;
 
   constructor(
     private readonly platform: GreeACPlatform,
@@ -136,6 +137,13 @@ export class GreeAirConditioner {
         this.platform.Characteristic.TargetHeaterCoolerState.AUTO;
     }
 
+    // init HeaterCoolerRotationSpeed default value
+    if (this.accessory.context.HeaterCoolerRotationSpeed === undefined) {
+      this.accessory.context.HeaterCoolerRotationSpeed =
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).value ||
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.minValue || 0;
+    }
+
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.FirmwareRevision,
@@ -191,7 +199,7 @@ export class GreeAirConditioner {
           .setProps({
             minValue: 0,
             maxValue: 100,
-            minStep: 100 / (this.deviceConfig.speedSteps + 2) });
+            minStep: 100 / (this.deviceConfig.speedSteps + 1) });
         this.platform.log.debug(`[${this.getDeviceLabel()}] Fan RotationSpeed - minValue: %s, maxValue: %s, minStep: %s`,
           this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.minValue?.toString(),
           this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue?.toString(),
@@ -367,7 +375,11 @@ export class GreeAirConditioner {
   }
 
   async setRotationSpeed(value: CharacteristicValue) {
+    const maxSpeed = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue ||
+        this.deviceConfig.speedSteps + 3;
     switch (value) {
+      case 0: // inactive -> rotation speed change not needed
+        return;
       case 1: // quiet
         this.platform.log.debug(`[${this.getDeviceLabel()}] Set Heater-Cooler RotationSpeed ->`, value + ' (quiet)');
         this.quietMode = commands.quietMode.value.on;
@@ -385,17 +397,17 @@ export class GreeAirConditioner {
       case 4: // mediumLow / medium
         this.platform.log.debug(`[${this.getDeviceLabel()}] Set Heater-Cooler RotationSpeed ->`, value + ' (' +
           this.getKeyName(commands.speed.value,
-            (this.deviceConfig.speedSteps === 5) ? commands.speed.value.mediumLow : commands.speed.value.medium) + ')');
-        this.speed = (this.deviceConfig.speedSteps === 5) ? commands.speed.value.mediumLow : commands.speed.value.medium;
+            (maxSpeed === 8) ? commands.speed.value.mediumLow : commands.speed.value.medium) + ')');
+        this.speed = (maxSpeed === 8) ? commands.speed.value.mediumLow : commands.speed.value.medium;
         break;
       case 5: // medium / high
         this.platform.log.debug(`[${this.getDeviceLabel()}] Set Heater-Cooler RotationSpeed ->`, value + ' (' +
           this.getKeyName(commands.speed.value,
-            (this.deviceConfig.speedSteps === 5) ? commands.speed.value.medium : commands.speed.value.high) + ')');
-        this.speed = (this.deviceConfig.speedSteps === 5) ? commands.speed.value.medium : commands.speed.value.high;
+            (maxSpeed === 8) ? commands.speed.value.medium : commands.speed.value.high) + ')');
+        this.speed = (maxSpeed === 8) ? commands.speed.value.medium : commands.speed.value.high;
         break;
       case 6: // mediumHigh / powerful
-        if (this.deviceConfig.speedSteps === 5) {
+        if (maxSpeed === 8) {
           // mediumHigh
           this.platform.log.debug(`[${this.getDeviceLabel()}] Set Heater-Cooler RotationSpeed ->`, value +
             ' (' + this.getKeyName(commands.speed.value, commands.speed.value.mediumHigh) + ')');
@@ -421,59 +433,47 @@ export class GreeAirConditioner {
         this.speed = commands.speed.value.auto;
         break;
     }
+    this.accessory.context.HeaterCoolerRotationSpeed = value;
+    this.platform.api.updatePlatformAccessories([this.accessory]);
   }
 
   async setFanRotationSpeed(value: CharacteristicValue) {
+    if (value !== 0 &&
+      this.Fan?.getCharacteristic(this.platform.Characteristic.Active).value !== this.platform.Characteristic.Active.ACTIVE) {
+      this.Fan?.getCharacteristic(this.platform.Characteristic.Active).setValue(this.platform.Characteristic.Active.ACTIVE);
+    }
+    let logMsg = `[${this.getDeviceLabel()}] Set Fan RotationSpeed -> ${Math.round(value as number)}%`;
     switch(Math.round(value as number)) {
       case 0: // inactive -> rotation speed change not needed
         return;
-      case 14: // quiet - 5 step model
-      case 20: // quiet - 3 step model
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 1 (quiet) - ${Math.round(value as number)}%`);
-        this.quietMode = commands.quietMode.value.on;
-        break;
-      case 29: // low - 5 step model
-      case 40: // low - 3 step model
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 3`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.low)}) - ${Math.round(value as number)}%`);
+      case 17: // low - 5 step model
+      case 25: // low - 3 step model
+        logMsg += ` (${this.getKeyName(commands.speed.value, commands.speed.value.low)})`;
         this.speed = commands.speed.value.low;
         break;
-      case 43: // mediumLow
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 4`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.mediumLow)}) - ${Math.round(value as number)}%`);
+      case 33: // mediumLow
+        logMsg += ` (${this.getKeyName(commands.speed.value, commands.speed.value.mediumLow)})`;
         this.speed = commands.speed.value.mediumLow;
         break;
-      case 57: // medium - 5 step model
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 5`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.medium)}) - ${Math.round(value as number)}%`);
+      case 50: // medium
+        logMsg += ` (${this.getKeyName(commands.speed.value, commands.speed.value.medium)}) - ${Math.round(value as number)}%`;
         this.speed = commands.speed.value.medium;
         break;
-      case 60: // medium - 3 step model
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 4`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.medium)}) - ${Math.round(value as number)}%`);
-        this.speed = commands.speed.value.medium;
-        break;
-      case 71: // mediumHigh
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 6`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.mediumHigh)}) - ${Math.round(value as number)}%`);
+      case 67: // mediumHigh
+        logMsg += ` (${this.getKeyName(commands.speed.value, commands.speed.value.mediumHigh)}) - ${Math.round(value as number)}%`;
         this.speed = commands.speed.value.mediumHigh;
         break;
-      case 80: // high - 3 step model
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 5`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.high)}) - ${Math.round(value as number)}%`);
-        this.speed = commands.speed.value.high;
-        break;
-      case 86: // high - 5 step model
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 7`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.high)}) - ${Math.round(value as number)}%`);
+      case 75: // high - 3 step model
+      case 83: // high - 5 step model
+        logMsg += ` (${this.getKeyName(commands.speed.value, commands.speed.value.high)}) - ${Math.round(value as number)}%`;
         this.speed = commands.speed.value.high;
         break;
       default: // auto
-        this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan RotationSpeed -> 2`,
-          `(${this.getKeyName(commands.speed.value, commands.speed.value.auto)}) - ${Math.round(value as number)}%`);
+        logMsg += ` (${this.getKeyName(commands.speed.value, commands.speed.value.auto)}) - ${Math.round(value as number)}%`;
         this.speed = commands.speed.value.auto;
         break;
     }
+    this.platform.log.debug(logMsg);
   }
 
   /**
@@ -602,14 +602,15 @@ export class GreeAirConditioner {
   }
 
   async getRotationSpeed(): Promise<CharacteristicValue> {
+    const maxSpeed = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue ||
+        this.deviceConfig.speedSteps + 3;
     if (this.quietMode === commands.quietMode.value.on) {
       this.platform.log.debug(`[${this.getDeviceLabel()}] Get Heater-Cooler RotationSpeed -> 1 (quiet)`);
       return 1;
     }
     if (this.powerfulMode === commands.powerfulMode.value.on) {
-      this.platform.log.debug(`[${this.getDeviceLabel()}] Get Heater-Cooler RotationSpeed ->`,
-        (this.deviceConfig.speedSteps + 3) + ' (powerful)');
-      return this.deviceConfig.speedSteps + 3;
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Get Heater-Cooler RotationSpeed -> ${maxSpeed} (powerful)`);
+      return maxSpeed;
     }
     let value = 2; // default to auto
     let logValue = this.getKeyName(commands.speed.value, commands.speed.value.auto);
@@ -621,19 +622,19 @@ export class GreeAirConditioner {
       case commands.speed.value.mediumLow:
         value = 4;
         logValue = this.getKeyName(commands.speed.value,
-          (this.deviceConfig.speedSteps === 5) ? commands.speed.value.mediumLow : commands.speed.value.medium);
+          (maxSpeed === 8) ? commands.speed.value.mediumLow : commands.speed.value.medium);
         break;
       case commands.speed.value.medium:
-        value = (this.deviceConfig.speedSteps === 5) ? 5 : 4;
+        value = (maxSpeed === 8) ? 5 : 4;
         logValue = this.getKeyName(commands.speed.value, commands.speed.value.medium);
         break;
       case commands.speed.value.mediumHigh:
-        value = (this.deviceConfig.speedSteps === 5) ? 6 : 4;
+        value = (maxSpeed === 8) ? 6 : 4;
         logValue = this.getKeyName(commands.speed.value,
-          (this.deviceConfig.speedSteps === 5) ? commands.speed.value.mediumHigh : commands.speed.value.medium);
+          (maxSpeed === 8) ? commands.speed.value.mediumHigh : commands.speed.value.medium);
         break;
       case commands.speed.value.high:
-        value = (this.deviceConfig.speedSteps === 5) ? 7 : 5;
+        value = (maxSpeed === 8) ? 7 : 5;
         logValue = this.getKeyName(commands.speed.value, commands.speed.value.high);
         break;
     }
@@ -642,46 +643,35 @@ export class GreeAirConditioner {
   }
 
   async getFanRotationSpeed(): Promise<CharacteristicValue> {
-    if (this.quietMode === commands.quietMode.value.on) {
-      this.platform.log.debug(`[${this.getDeviceLabel()}] Get Fan RotationSpeed -> 1 (quiet)`);
-      return 100 / (this.deviceConfig.speedSteps + 2);
-    }
+    const minStep = this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.minStep ||
+        100 / (this.deviceConfig.speedSteps + 1);
     let value = 100; // default to auto
-    let logValue = 2; // default to auto
     let logValueName = this.getKeyName(commands.speed.value, commands.speed.value.auto);
     switch (this.speed) {
       case commands.speed.value.low:
-        logValue = 3;
-        value = 2 * 100 / (this.deviceConfig.speedSteps + 2);
+        value = minStep;
         logValueName = this.getKeyName(commands.speed.value, commands.speed.value.low);
         break;
       case commands.speed.value.mediumLow:
-        logValue = 4;
-        value = 3 * 100 / (this.deviceConfig.speedSteps + 2);
+        value = 2 * minStep;
         logValueName = this.getKeyName(commands.speed.value,
-          (this.deviceConfig.speedSteps === 5) ? commands.speed.value.mediumLow : commands.speed.value.medium);
+          (minStep !== 25) ? commands.speed.value.mediumLow : commands.speed.value.medium);
         break;
       case commands.speed.value.medium:
-        logValue = (this.deviceConfig.speedSteps === 5) ? 5 : 4;
-        value = (this.deviceConfig.speedSteps === 5) ? 4 * 100 / (this.deviceConfig.speedSteps + 2) :
-          3 * 100 / (this.deviceConfig.speedSteps + 2);
+        value = (minStep !== 25 ? 3 : 2) * minStep;
         logValueName = this.getKeyName(commands.speed.value, commands.speed.value.medium);
         break;
       case commands.speed.value.mediumHigh:
-        logValue = (this.deviceConfig.speedSteps === 5) ? 6 : 4;
-        value = (this.deviceConfig.speedSteps === 5) ? 5 * 100 / (this.deviceConfig.speedSteps + 2) :
-          3 * 100 / (this.deviceConfig.speedSteps + 2);
+        value = (minStep !== 25 ? 4 : 2) * minStep;
         logValueName = this.getKeyName(commands.speed.value,
-          (this.deviceConfig.speedSteps === 5) ? commands.speed.value.mediumHigh : commands.speed.value.medium);
+          (minStep !== 25) ? commands.speed.value.mediumHigh : commands.speed.value.medium);
         break;
       case commands.speed.value.high:
-        logValue = (this.deviceConfig.speedSteps === 5) ? 7 : 5;
-        value = (this.deviceConfig.speedSteps === 5) ? 6 * 100 / (this.deviceConfig.speedSteps + 2) :
-          4 * 100 / (this.deviceConfig.speedSteps + 2);
+        value = (minStep !== 25 ? 5 : 3) * minStep;
         logValueName = this.getKeyName(commands.speed.value, commands.speed.value.high);
         break;
     }
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Get Fan RotationSpeed ->`, logValue + ' (' + logValueName + ')');
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Get Fan RotationSpeed -> ${Math.round(value as number)}% (${logValueName})`);
     return value;
   }
 
@@ -814,10 +804,14 @@ export class GreeAirConditioner {
   }
 
   set power(value: boolean) {
-    if (value === this.power || this.powerPending !== -1) {
+    if ((value === this.power && [commands.mode.value.cool, commands.mode.value.heat, commands.mode.value.auto].includes(this.mode)) ||
+      this.powerPending !== -1 || this.modePending !== -1) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] power -> no change (${this.power}, ${this.powerPending}, ${this.mode},`,
+        `${this.modePending})`);
       return;
     }
     if (!value && ![commands.mode.value.cool, commands.mode.value.heat, commands.mode.value.auto].includes(this.mode)) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] power -> set inactive but no power off (${this.mode})`);
       return;
     }
     const powerValue = value ? commands.power.value.on : commands.power.value.off;
@@ -841,12 +835,22 @@ export class GreeAirConditioner {
           if (this.mode !== commands.mode.value.heat) {
             command[commands.mode.code] = commands.mode.value.heat;
             logValue += (logValue ? ', ' : '') + 'mode -> ' + this.getKeyName(commands.mode.value, commands.mode.value.heat);
+            if (this.deviceConfig.xFanEnabled && (this.status[commands.xFan.code] || commands.xFan.value.on) !== commands.xFan.value.off) {
+              // turn off xFan in unsupported modes (only Cool and Dry modes support xFan)
+              logValue += (logValue ? ', ' : '') + 'xFan -> ' + this.getKeyName(commands.xFan.value, commands.xFan.value.off);
+              command[commands.xFan.code] = commands.xFan.value.off;
+            }
           }
           break;
         case this.platform.Characteristic.TargetHeaterCoolerState.AUTO:
           if (this.mode !== commands.mode.value.auto) {
             command[commands.mode.code] = commands.mode.value.auto;
             logValue += (logValue ? ', ' : '') + 'mode -> ' + this.getKeyName(commands.mode.value, commands.mode.value.auto);
+            if (this.deviceConfig.xFanEnabled && (this.status[commands.xFan.code] || commands.xFan.value.on) !== commands.xFan.value.off) {
+              // turn off xFan in unsupported modes (only Cool and Dry modes support xFan)
+              logValue += (logValue ? ', ' : '') + 'xFan -> ' + this.getKeyName(commands.xFan.value, commands.xFan.value.off);
+              command[commands.xFan.code] = commands.xFan.value.off;
+            }
           }
           break;
       }
@@ -856,16 +860,151 @@ export class GreeAirConditioner {
         command[commands.swingVertical.code] = value;
         logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
       }
+      if (this.accessory.context.HeaterCoolerRotationSpeed !== 0) {
+        // restore rotation speed on power on
+        const maxSpeed = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue ||
+          this.deviceConfig.speedSteps + 3;
+        switch (this.accessory.context.HeaterCoolerRotationSpeed) {
+          case 1: // quiet
+            if ([this.platform.Characteristic.TargetHeaterCoolerState.COOL, this.platform.Characteristic.TargetHeaterCoolerState.HEAT]
+              .includes(this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
+              this.accessory.context.TargetHeaterCoolerState)) {
+              command[commands.quietMode.code] = commands.quietMode.value.on;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' + this.getKeyName(commands.quietMode.value, commands.quietMode.value.on);
+            } else {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            }
+            command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            command[commands.speed.code] = commands.speed.value.low;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.low);
+            break;
+          case 2: // auto
+            if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = commands.speed.value.auto;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.auto);
+            break;
+          case 3: // low
+            if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = commands.speed.value.low;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.low);
+            break;
+          case 4: // mediumLow / medium
+            if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = maxSpeed === 8 ? commands.speed.value.mediumLow : commands.speed.value.medium;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, command[commands.speed.code]);
+            break;
+          case 5: // medium / high
+            if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = maxSpeed === 8 ? commands.speed.value.medium : commands.speed.value.high;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, command[commands.speed.code]);
+            break;
+          case 6: // mediumHigh / powerful
+            if (maxSpeed === 8) {
+              if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+                command[commands.quietMode.code] = commands.quietMode.value.off;
+                logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                  this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+                command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+                logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                  this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+              }
+              command[commands.speed.code] = commands.speed.value.mediumHigh;
+              logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.mediumHigh);
+            } else {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              if ([this.platform.Characteristic.TargetHeaterCoolerState.COOL, this.platform.Characteristic.TargetHeaterCoolerState.HEAT]
+                .includes(this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
+                this.accessory.context.TargetHeaterCoolerState)) {
+                command[commands.powerfulMode.code] = commands.powerfulMode.value.on;
+                logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                  this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.on);
+              } else {
+                command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+                logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                  this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+              }
+              command[commands.speed.code] = commands.speed.value.high;
+              logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.high);
+            }
+            break;
+          case 7: // high
+            if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = commands.speed.value.high;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.high);
+            break;
+          case 8: // powerful
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            if ([this.platform.Characteristic.TargetHeaterCoolerState.COOL, this.platform.Characteristic.TargetHeaterCoolerState.HEAT]
+              .includes(this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
+              this.accessory.context.TargetHeaterCoolerState)) {
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.on;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.on);
+            } else {
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = commands.speed.value.high;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.high);
+            break;
+        }
+      }
     }
     this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
     this.sendCommand(command);
   }
 
   set fanpower(value: boolean) {
-    if (this.powerPending !== -1) {
+    if (this.powerPending !== -1 || this.modePending !== -1) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] fanpower -> no change (${this.powerPending}, ${this.modePending})`);
       return;
     }
     if (!value && this.mode !== commands.mode.value.fan) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] fanpower -> set inactive but no power off (${this.mode})`);
       return;
     }
     const powerValue = value ? commands.power.value.on : commands.power.value.off;
@@ -888,6 +1027,11 @@ export class GreeAirConditioner {
       logValue += (logValue ? ', ' : '') + 'mode -> ' + this.getKeyName(commands.mode.value, commands.mode.value.fan);
     }
     if (logValue) {
+      command[commands.quietMode.code] = commands.quietMode.value.off;
+      logValue += (logValue ? ', ' : '') + 'quietMode -> ' + this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+      command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+      logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+        this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
       this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
       this.sendCommand(command);
     }
@@ -898,16 +1042,141 @@ export class GreeAirConditioner {
   }
 
   set mode(value) {
-    if (value === this.mode) {
+    if (value === this.mode || this.modePending !== -1) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] mode -> no change (${value}, ${this.modePending})`);
       return;
     }
     let logValue = 'mode -> ' + this.getKeyName(commands.mode.value, value);
     const command: Record<string, unknown> = { [commands.mode.code]: value };
     if (this.deviceConfig.xFanEnabled && (this.status[commands.xFan.code] || commands.xFan.value.off) !== commands.xFan.value.on &&
-      (value === commands.mode.value.cool || value === commands.mode.value.dry)) {
+      [commands.mode.value.cool, commands.mode.value.dry].includes(value)) {
       // turn on xFan in Cool and Dry mode if xFan is enabled for this device
       logValue += ', xFan -> ' + this.getKeyName(commands.xFan.value, commands.xFan.value.on);
       command[commands.xFan.code] = commands.xFan.value.on;
+    } else if (this.deviceConfig.xFanEnabled && (this.status[commands.xFan.code] || commands.xFan.value.on) !== commands.xFan.value.off &&
+      ![commands.mode.value.cool, commands.mode.value.dry].includes(value)) {
+      // turn off xFan in unsupported modes (only Cool and Dry modes support xFan)
+      logValue += ', xFan -> ' + this.getKeyName(commands.xFan.value, commands.xFan.value.off);
+      command[commands.xFan.code] = commands.xFan.value.off;
+    }
+    if (this.accessory.context.HeaterCoolerRotationSpeed !== 0 &&
+      [commands.mode.value.cool, commands.mode.value.heat, commands.mode.value.auto].includes(value)) {
+      // restore rotation speed on mode change
+      const maxSpeed = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue ||
+        this.deviceConfig.speedSteps + 3;
+      switch (this.accessory.context.HeaterCoolerRotationSpeed) {
+        case 1: // quiet
+          command[commands.quietMode.code] = value === commands.mode.value.auto ? commands.quietMode.value.off :
+            commands.quietMode.value.on;
+          logValue += (logValue ? ', ' : '') + 'quietMode -> ' + this.getKeyName(commands.quietMode.value,
+            value === commands.mode.value.auto ? commands.quietMode.value.off : commands.quietMode.value.on);
+          command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+          logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+            this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+          command[commands.speed.code] = commands.speed.value.low;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.low);
+          break;
+        case 2: // auto
+          if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+          }
+          command[commands.speed.code] = commands.speed.value.auto;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.auto);
+          break;
+        case 3: // low
+          if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+          }
+          command[commands.speed.code] = commands.speed.value.low;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.low);
+          break;
+        case 4: // mediumLow / medium
+          if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+          }
+          command[commands.speed.code] = maxSpeed === 8 ? commands.speed.value.mediumLow : commands.speed.value.medium;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, command[commands.speed.code]);
+          break;
+        case 5: // medium / high
+          if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+          }
+          command[commands.speed.code] = maxSpeed === 8 ? commands.speed.value.medium : commands.speed.value.high;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, command[commands.speed.code]);
+          break;
+        case 6: // mediumHigh / powerful
+          if (maxSpeed === 8) {
+            if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+              command[commands.quietMode.code] = commands.quietMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+                this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+              command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+              logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+                this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+            }
+            command[commands.speed.code] = commands.speed.value.mediumHigh;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.mediumHigh);
+          } else {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = value === commands.mode.value.auto ? commands.powerfulMode.value.off :
+              commands.powerfulMode.value.on;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, value === commands.mode.value.auto ? commands.powerfulMode.value.off :
+                commands.powerfulMode.value.on);
+            command[commands.speed.code] = commands.speed.value.high;
+            logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.high);
+          }
+          break;
+        case 7: // high
+          if (this.quietMode !== commands.quietMode.value.off || this.powerfulMode !== commands.powerfulMode.value.off) {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+          }
+          command[commands.speed.code] = commands.speed.value.high;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.high);
+          break;
+        case 8: // powerful
+          if ([commands.mode.value.cool, commands.mode.value.heat].includes(value)) {
+            command[commands.quietMode.code] = commands.quietMode.value.off;
+            logValue += (logValue ? ', ' : '') + 'quietMode -> ' +
+              this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+            command[commands.powerfulMode.code] = value === commands.mode.value.auto ? commands.powerfulMode.value.off :
+              commands.powerfulMode.value.on;
+            logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+              this.getKeyName(commands.powerfulMode.value, value === commands.mode.value.auto ? commands.powerfulMode.value.off :
+                commands.powerfulMode.value.on,
+              );
+          }
+          command[commands.speed.code] = commands.speed.value.high;
+          logValue += (logValue ? ', ' : '') + 'speed -> ' + this.getKeyName(commands.speed.value, commands.speed.value.high);
+          break;
+      }
     }
     this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
     this.sendCommand(command);
@@ -947,6 +1216,7 @@ export class GreeAirConditioner {
 
   set targetTemperature(value) {
     if (value === this.targetTemperature) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] targetTemperature -> no change (${value})`);
       return;
     }
     const tempValue = this.calcDeviceTargetTemp(value);
@@ -977,6 +1247,7 @@ export class GreeAirConditioner {
 
   set units(value) {
     if (value === this.units) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] units -> no change (${value})`);
       return;
     }
     const command: Record<string, unknown> = { [commands.units.code]: value };
@@ -1004,6 +1275,7 @@ export class GreeAirConditioner {
 
   set swingMode(value) {
     if (value === this.swingMode) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] swingMode -> no change (${value})`);
       return;
     }
     const command: Record<string, unknown> = { [commands.swingVertical.code]: value };
@@ -1017,6 +1289,7 @@ export class GreeAirConditioner {
 
   set speed(value) {
     if (value === this.speed && this.quietMode === commands.quietMode.value.off && this.powerfulMode === commands.powerfulMode.value.off) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] speed -> no change (${value}, ${this.quietMode}, ${this.powerfulMode})`);
       return;
     }
     const command: Record<string, unknown> = { [commands.speed.code]: value };
@@ -1034,10 +1307,21 @@ export class GreeAirConditioner {
 
   set quietMode(value) {
     if (value === this.quietMode || value !== commands.quietMode.value.on) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] quietMode -> not turning on (${value})`);
       return;
     }
-    const command: Record<string, unknown> = { [commands.quietMode.code]: value };
-    let logValue = 'quietMode -> ' + this.getKeyName(commands.quietMode.value, value);
+    let logValue = '';
+    const command: Record<string, unknown> = {};
+    if ([this.platform.Characteristic.TargetHeaterCoolerState.COOL, this.platform.Characteristic.TargetHeaterCoolerState.HEAT]
+      .includes(this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
+      this.accessory.context.TargetHeaterCoolerState)) {
+      command[commands.quietMode.code] = value;
+      logValue += 'quietMode -> ' + this.getKeyName(commands.quietMode.value, value);
+    } else {
+      // quiet mode is supported only in heating and cooling mode
+      command[commands.quietMode.code] = commands.quietMode.value.off;
+      logValue += 'quietMode -> ' + this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+    }
     if (value === commands.quietMode.value.on) {
       command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
       logValue += ', powerfulMode -> ' + this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
@@ -1054,10 +1338,21 @@ export class GreeAirConditioner {
 
   set powerfulMode(value) {
     if (value === this.powerfulMode || value !== commands.powerfulMode.value.on) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] powerfulMode -> not turning on (${value})`);
       return;
     }
-    let logValue = 'powerfulMode -> ' + this.getKeyName(commands.powerfulMode.value, value);
-    const command: Record<string, unknown> = { [commands.powerfulMode.code]: value };
+    let logValue = '';
+    const command: Record<string, unknown> = {};
+    if ([this.platform.Characteristic.TargetHeaterCoolerState.COOL, this.platform.Characteristic.TargetHeaterCoolerState.HEAT]
+      .includes(this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
+      this.accessory.context.TargetHeaterCoolerState)) {
+      command[commands.powerfulMode.code] = value;
+      logValue += 'powerfulMode -> ' + this.getKeyName(commands.powerfulMode.value, value);
+    } else {
+      // powerful mode is supported only in heating and cooling mode
+      command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+      logValue += 'powerfulMode -> ' + this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
+    }
     if (value === commands.powerfulMode.value.on) {
       command[commands.quietMode.code] = commands.quietMode.value.off;
       logValue += ', quietMode -> ' + this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
@@ -1219,73 +1514,74 @@ export class GreeAirConditioner {
       this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.SwingMode)
         .updateValue(swing);
     }
-    // Rotation Speed
-    if (hcActive || fanActive) {
-      let logValue = '2 (auto)';
+    // Heater-Cooler Rotation Speed
+    if (hcActive) {
+      const maxSpeed = this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.maxValue ||
+        this.deviceConfig.speedSteps + 3;
       if (props.includes(commands.quietMode.code) && this.quietMode === commands.quietMode.value.on) {
         // quietMode -> on
-        this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Rotation Speed) -> 1 (quiet)`);
-        if (hcActive) {
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-            .updateValue(1);
-        }
-        if (fanActive) {
-          this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-            .updateValue(100 / (this.deviceConfig.speedSteps + 2));
-        }
+        this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Heater-Cooler Rotation Speed) -> 1 (quiet)`);
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).updateValue(1);
+        this.accessory.context.HeaterCoolerRotationSpeed = 1;
       } else if (props.includes(commands.powerfulMode.code) && this.powerfulMode === commands.powerfulMode.value.on) {
         // powerfulMode -> on
-        logValue = `${this.deviceConfig.speedSteps + 3} (powerful)`;
-        this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Rotation Speed) ->`, logValue);
-        if (hcActive) {
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-            .updateValue(this.deviceConfig.speedSteps + 3);
-        }
-        // powerfulMode not supported in fan mode
+        this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Heater-Cooler Rotation Speed) ->`,
+          `${maxSpeed.toString()} (powerful)`);
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).updateValue(maxSpeed);
+        this.accessory.context.HeaterCoolerRotationSpeed = maxSpeed;
       } else if (props.includes(commands.speed.code)) {
-        // speed
         let speedValue = 2; // default: auto
-        let fanSpeedValue = 100; // default: auto
         switch (this.speed) {
           case commands.speed.value.low:
-            logValue = '3 (low)';
             speedValue = 3;
-            fanSpeedValue = 2 * 100 / (this.deviceConfig.speedSteps + 2);
             break;
           case commands.speed.value.mediumLow:
-            logValue = '4 (mediumLow)';
             speedValue = 4;
-            fanSpeedValue = 3 * 100 / (this.deviceConfig.speedSteps + 2);
             break;
           case commands.speed.value.medium:
-            logValue = ((this.deviceConfig.speedSteps === 5) ? '5' : '4') + ' (medium)';
-            speedValue = (this.deviceConfig.speedSteps === 5) ? 5 : 4;
-            fanSpeedValue = (this.deviceConfig.speedSteps === 5) ? 4 * 100 / (this.deviceConfig.speedSteps + 2) :
-              3 * 100 / (this.deviceConfig.speedSteps + 2);
+            speedValue = (maxSpeed === 8) ? 5 : 4;
             break;
           case commands.speed.value.mediumHigh:
-            logValue = ((this.deviceConfig.speedSteps === 5) ? '6' : '4') + ' (mediumHigh)';
-            speedValue = (this.deviceConfig.speedSteps === 5) ? 6 : 4;
-            fanSpeedValue = (this.deviceConfig.speedSteps === 5) ? 5 * 100 / (this.deviceConfig.speedSteps + 2) :
-              3 * 100 / (this.deviceConfig.speedSteps + 2);
+            speedValue = (maxSpeed === 8) ? 6 : 4;
             break;
           case commands.speed.value.high:
-            logValue = ((this.deviceConfig.speedSteps === 5) ? '7' : '5') + ' (high)';
-            speedValue = (this.deviceConfig.speedSteps === 5) ? 7 : 5;
-            fanSpeedValue = (this.deviceConfig.speedSteps === 5) ? 6 * 100 / (this.deviceConfig.speedSteps + 2) :
-              4 * 100 / (this.deviceConfig.speedSteps + 2);
+            speedValue = (maxSpeed === 8) ? 7 : 5;
             break;
         }
-        this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Rotation Speed) ->`, logValue);
-        if (hcActive) {
-          this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-            .updateValue(speedValue);
-        }
-        if (fanActive) {
-          this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-            .updateValue(fanSpeedValue);
-        }
+        const speedName = this.getKeyName(commands.speed.value, this.speed);
+        this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Heater-Cooler Rotation Speed) ->`,
+          `${speedValue.toString()} (${speedName})`);
+        this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.RotationSpeed).updateValue(speedValue);
+        this.accessory.context.HeaterCoolerRotationSpeed = speedValue;
       }
+      this.platform.api.updatePlatformAccessories([this.accessory]);
+    }
+    // Fan Rotation Speed
+    if (fanActive) {
+      const minStep = this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed).props.minStep ||
+        100 / (this.deviceConfig.speedSteps + 1);
+      let fanSpeedValue = 100; // default: auto
+      switch (this.speed) {
+        case commands.speed.value.low:
+          fanSpeedValue = minStep;
+          break;
+        case commands.speed.value.mediumLow:
+          fanSpeedValue = 2 * minStep;
+          break;
+        case commands.speed.value.medium:
+          fanSpeedValue = (minStep !== 25 ? 3 : 2) * minStep;
+          break;
+        case commands.speed.value.mediumHigh:
+          fanSpeedValue = (minStep !== 25 ? 4 : 2) * minStep;
+          break;
+        case commands.speed.value.high:
+          fanSpeedValue = (minStep !== 25 ? 5 : 3) * minStep;
+          break;
+      }
+      const speedName = this.getKeyName(commands.speed.value, this.speed);
+      this.platform.log.debug(`[${this.getDeviceLabel()}] updateStatus (Fan Rotation Speed) ->`,
+        `${Math.round(fanSpeedValue as number)}% (${speedName})`);
+      this.Fan?.getCharacteristic(this.platform.Characteristic.RotationSpeed).updateValue(fanSpeedValue);
     }
   }
 
@@ -1341,6 +1637,9 @@ export class GreeAirConditioner {
               if (col === commands.power.code && pack.dat[i] === this.powerPending) {
                 this.powerPending = -1;
               }
+              if (col === commands.mode.code && pack.dat[i] === this.modePending) {
+                this.modePending = -1;
+              }
             });
             this.platform.log.debug(`[${this.getDeviceLabel()}] Device status -> %j`, this.status);
             if (!(pack.cols as [string]).includes(commands.temperature.code) || invalidTempFromDevice) {
@@ -1374,6 +1673,9 @@ export class GreeAirConditioner {
               this.status[opt] = value;
               if (opt === commands.power.code && value === this.powerPending) {
                 this.powerPending = -1;
+              }
+              if (opt === commands.mode.code && value === this.modePending) {
+                this.modePending = -1;
               }
             });
             if (updatedParams.length > 0) {
@@ -1456,6 +1758,9 @@ export class GreeAirConditioner {
     };
     if (keys.includes(commands.power.code)) {
       this.powerPending = values[keys.indexOf(commands.power.code)];
+    }
+    if (keys.includes(commands.mode.code)) {
+      this.modePending = values[keys.indexOf(commands.mode.code)];
     }
     this.sendMessage(message);
   }
