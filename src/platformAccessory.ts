@@ -815,8 +815,12 @@ export class GreeAirConditioner {
       return;
     }
     const powerValue = value ? commands.power.value.on : commands.power.value.off;
-    const command: Record<string, unknown> = { [commands.power.code]: powerValue };
-    let logValue = 'power -> ' + this.getKeyName(commands.power.value, powerValue);
+    const command: Record<string, unknown> = {};
+    let logValue = '';
+    if (value !== this.power) {
+      command[commands.power.code] = powerValue;
+      logValue += (logValue ? ', ' : '') + 'power -> ' + this.getKeyName(commands.power.value, powerValue);
+    }
     if (powerValue === commands.power.value.on) {
       switch (this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
         this.accessory.context.TargetHeaterCoolerState) {
@@ -853,12 +857,6 @@ export class GreeAirConditioner {
             }
           }
           break;
-      }
-      if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
-        DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing) && this.swingMode === commands.swingVertical.value.default) {
-        const value = this.deviceConfig.defaultVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
-        command[commands.swingVertical.code] = value;
-        logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
       }
       if (this.accessory.context.HeaterCoolerRotationSpeed !== 0) {
         // restore rotation speed on power on
@@ -993,6 +991,12 @@ export class GreeAirConditioner {
             break;
         }
       }
+      if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
+        DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing) && this.swingMode === commands.swingVertical.value.default) {
+        const value = this.deviceConfig.defaultVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
+        command[commands.swingVertical.code] = value;
+        logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
+      }
     }
     this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
     this.sendCommand(command);
@@ -1013,7 +1017,18 @@ export class GreeAirConditioner {
     if (value !== this.power) {
       command[commands.power.code] = powerValue;
       logValue += (logValue ? ', ' : '') + 'power -> ' + this.getKeyName(commands.power.value, powerValue);
+    }
+    if (powerValue === commands.power.value.on && this.mode !== commands.mode.value.fan) {
+      command[commands.mode.code] = commands.mode.value.fan;
+      logValue += (logValue ? ', ' : '') + 'mode -> ' + this.getKeyName(commands.mode.value, commands.mode.value.fan);
+    }
+    if (logValue) {
       if (powerValue === commands.power.value.on) {
+        command[commands.quietMode.code] = commands.quietMode.value.off;
+        logValue += (logValue ? ', ' : '') + 'quietMode -> ' + this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
+        command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
+        logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
+        this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
         if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
           DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing) && this.swingMode === commands.swingVertical.value.default) {
           const value = this.deviceConfig.defaultVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
@@ -1021,17 +1036,6 @@ export class GreeAirConditioner {
           logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
         }
       }
-    }
-    if (powerValue === commands.power.value.on && this.mode !== commands.mode.value.fan) {
-      command[commands.mode.code] = commands.mode.value.fan;
-      logValue += (logValue ? ', ' : '') + 'mode -> ' + this.getKeyName(commands.mode.value, commands.mode.value.fan);
-    }
-    if (logValue) {
-      command[commands.quietMode.code] = commands.quietMode.value.off;
-      logValue += (logValue ? ', ' : '') + 'quietMode -> ' + this.getKeyName(commands.quietMode.value, commands.quietMode.value.off);
-      command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
-      logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
-        this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
       this.platform.log.info(`[${this.getDeviceLabel()}]`, logValue);
       this.sendCommand(command);
     }
