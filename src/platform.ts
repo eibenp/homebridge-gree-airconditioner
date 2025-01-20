@@ -4,7 +4,7 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 import { networkInterfaces } from 'os';
 import { readFileSync } from 'fs';
 
-import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, OVERRIDE_DEFAULT_SWING, ENCRYPTION_VERSION, TS_TYPE,
+import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, MODIFY_VERTICAL_SWING_POSITION, ENCRYPTION_VERSION, TS_TYPE,
   DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS} from './settings';
 import { GreeAirConditioner } from './platformAccessory';
 import commands from './commands';
@@ -204,8 +204,17 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
         commands.swingVertical.value.fixedLowest].includes(devcfg.defaultVerticalSwing) ?
         { defaultVerticalSwing: DEFAULT_DEVICE_CONFIG.defaultVerticalSwing } : {}),
-      ...(devcfg.overrideDefaultVerticalSwing && !Object.values(OVERRIDE_DEFAULT_SWING).includes(devcfg.overrideDefaultVerticalSwing) ?
-        { overrideDefaultVerticalSwing: DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing } : {}),
+      ...(devcfg.defaultFanVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
+        commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
+        commands.swingVertical.value.fixedLowest].includes(devcfg.defaultFanVerticalSwing) ?
+        { defaultFanVerticalSwing: DEFAULT_DEVICE_CONFIG.defaultFanVerticalSwing } : {}),
+      // overrideDefaultVerticalSwing remains here for compatibility reasons
+      ...(devcfg.overrideDefaultVerticalSwing &&
+        !Object.values(MODIFY_VERTICAL_SWING_POSITION).includes(devcfg.overrideDefaultVerticalSwing) ?
+        { overrideDefaultVerticalSwing: DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition } : {}),
+      ...(devcfg.modifyVerticalSwingPosition &&
+        !Object.values(MODIFY_VERTICAL_SWING_POSITION).includes(devcfg.modifyVerticalSwingPosition) ?
+        { modifyVerticalSwingPosition: DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition } : {}),
       ...(devcfg.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(devcfg.encryptionVersion) ?
         { encryptionVersion: DEFAULT_DEVICE_CONFIG.encryptionVersion } : {}),
     };
@@ -266,10 +275,24 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
       commands.swingVertical.value.fixedLowest].includes(deviceConfig.defaultVerticalSwing)) {
       deviceConfig.defaultVerticalSwing = DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
+      this.log.warn('Warning: Invalid vertical position detected ->',
+        `Accessory ${deviceInfo.mac} is using default value instead of the configured one`);
     }
+    if (deviceConfig.defaultFanVerticalSwing && ![commands.swingVertical.value.default, commands.swingVertical.value.fixedHighest,
+      commands.swingVertical.value.fixedHigher, commands.swingVertical.value.fixedMiddle, commands.swingVertical.value.fixedLower,
+      commands.swingVertical.value.fixedLowest].includes(deviceConfig.defaultFanVerticalSwing)) {
+      deviceConfig.defaultFanVerticalSwing = DEFAULT_DEVICE_CONFIG.defaultFanVerticalSwing;
+      this.log.warn('Warning: Invalid vertical fan position detected ->',
+        `Accessory ${deviceInfo.mac} is using default value instead of the configured one`);
+    }
+    // overrideDefaultVerticalSwing remains here for compatibility reasons
     if (deviceConfig.overrideDefaultVerticalSwing &&
-      !Object.values(OVERRIDE_DEFAULT_SWING).includes(deviceConfig.overrideDefaultVerticalSwing)) {
-      deviceConfig.overrideDefaultVerticalSwing = DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing;
+      !Object.values(MODIFY_VERTICAL_SWING_POSITION).includes(deviceConfig.overrideDefaultVerticalSwing)) {
+      deviceConfig.overrideDefaultVerticalSwing = DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition;
+    }
+    if (deviceConfig.modifyVerticalSwingPosition &&
+      !Object.values(MODIFY_VERTICAL_SWING_POSITION).includes(deviceConfig.modifyVerticalSwingPosition)) {
+      deviceConfig.modifyVerticalSwingPosition = DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition;
     }
     if (deviceConfig.encryptionVersion && !Object.values(ENCRYPTION_VERSION).includes(deviceConfig.encryptionVersion)) {
       deviceConfig.encryptionVersion = DEFAULT_DEVICE_CONFIG.encryptionVersion;
@@ -279,6 +302,19 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       this.log.warn('Warning: Port is misconfigured (Valid port values: 1025~65535 or leave port empty to auto select) - ' +
         `Accessory ${deviceInfo.mac} listening port overridden: ${deviceConfig.port} -> auto`);
       delete deviceConfig.port;
+    }
+    // replace deprecated overrideDefaultVerticalSwing with new modifyVerticalSwingPosition
+    if (deviceConfig.overrideDefaultVerticalSwing !== undefined && !deviceConfig.modifyVerticalSwingPosition) {
+      // found deprecated but missing new
+      this.log.warn('Deprecated configuration parameter found: overrideDefaultVerticalSwing - ' +
+        `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.overrideDefaultVerticalSwing} -> use modifyVerticalSwingPosition`);
+      deviceConfig.modifyVerticalSwingPosition = deviceConfig.overrideDefaultVerticalSwing;
+      delete deviceConfig.overrideDefaultVerticalSwing;
+    } else if (deviceConfig.overrideDefaultVerticalSwing !== undefined && deviceConfig.modifyVerticalSwingPosition !== undefined) {
+      // found both deprecated and new -> keep new only
+      this.log.warn('Deprecated configuration parameter found: overrideDefaultVerticalSwing - ' +
+        `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.overrideDefaultVerticalSwing} -> ignoring`);
+      delete deviceConfig.overrideDefaultVerticalSwing;
     }
     // force encryption version if set in config
     if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {

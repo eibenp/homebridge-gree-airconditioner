@@ -27,7 +27,7 @@ xFan function is supported, but it works automatically if enabled in Homebridge 
 
 Temperature display units of the physical device can be controlled using the Home App. (Configuration settings are required to be specified always in Degrees Celsius, independently from the display units.)
 
-Vertical swing mode can be turned on/off, but special swing settings can't be controlled using the Home App. If device default vertical swing position is not acceptable when oscillation is disabled, it can be overridden to a pre selected position by configuration settings. (Only default position is overridden when this feature is enabled. Other positions selected by remote control are kept and not modified by Home App.)
+Vertical swing mode can be turned on/off, but special swing settings can't be controlled using the Home App. If device default vertical swing position is not acceptable when oscillation is disabled, it can be set to a pre selected position by configuration settings. (There are multiple options for configuring the plugin to update the vertical swing position.)
 
 This plugin is designed to be as simple and clear as possible and supports primarily the functions of the Home App's Heater Cooler accessory.
 
@@ -83,12 +83,19 @@ If successfully installed and configured, your devices will appear on the Homebr
 
 Always check out your current settings in Homebridge and also in Home App (including scenes and automation rules) before you start an upgrade!
 
-### Any version to v2.1.7 - v2.2.0
+### v2.1.7 to v2.2.0
 
-The upgrade is automatic by installing the latest version. If upgrading from v2.1.6 or later no configuration changes are needed to continue the use of the plugin with original settings. Please see the following upgrade sections if upgrading from an earlier version.
+The upgrade is automatic by installing the latest version. It is highly recommended to update the configuration settings because some new parameters were introduced in v2.2.0 and there is also a parameter which was renamed.
 
 Fan mode support is new in version v2.2.0. It is disabled by default. To enable it the "fanControlEnabled" parameter must be set in configuration file.
-In v2.2.0 it is also possible to set default customized parameters for multiple devices by adding a special device with MAC address set to 'default'. To use this feature it is required to update the plugin's configuration.
+
+In v2.2.0 it is also possible to set default customized parameters for multiple devices by adding a special device with MAC address set to 'default'.
+
+The "overrideDefaultVerticalSwing" configuration parameter was renamed to "modifyVerticalSwingPosition" and new options were added to support some new cases.
+
+### Any version to v2.1.7
+
+The upgrade is automatic by installing the latest version. If upgrading from v2.1.6 no configuration changes are needed to continue the use of the plugin with original settings. Please see the following upgrade sections if upgrading from an earlier version.
 
 **Important change: All devices are automatically added to the Home App if they are not listed and disabled in configuration and they are located on the same subnet.** Earlier versions skipped the devices which were not found in configuration file.
 
@@ -221,9 +228,10 @@ It is possible to set some or all parameters to a customized value which is assi
                     "temperatureStepSize": 1,
                     "temperatureSensor": "disabled",
                     "xFanEnabled": true,
-                    "overrideDefaultVerticalSwing": 0,
+                    "modifyVerticalSwingPosition": 0,
                     "defaultVerticalSwing": 0,
                     "fanControlEnabled": false,
+                    "defaultFanVerticalSwing": 0,
                     "disabled": false
                 }
             ]
@@ -270,9 +278,10 @@ You can always override any default parameter by adding a device identified by M
                     "temperatureStepSize": 1,
                     "temperatureSensor": "disabled",
                     "xFanEnabled": true,
-                    "overrideDefaultVerticalSwing": 0,
+                    "modifyVerticalSwingPosition": 0,
                     "defaultVerticalSwing": 0,
                     "fanControlEnabled": false,
+                    "defaultFanVerticalSwing": 0,
                     "disabled": false
                 }
             ]
@@ -300,9 +309,10 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * **temperatureStepSize*** - numeric parameter, valid values: 0.5 and 1 (if missing then default value is based on the UI configuration: 0.5 if UI is set to Fahrenheit temperature units and 1 if UI is set to Celsius temperature units) Controls the acceptable temperature values in Home App (It is recommended to set it to 1 if Celsius display mode is used on the AC unit and 0.5 in Fahrenheit display mode.)
   * **temperatureSensor** - controls additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory) _Only independent accessories can be used by automations to control other accessories._
   * **xFanEnabled** - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
-  * **overrideDefaultVerticalSwing** - by default this plugin sets the vertical swing position to the default position of the AC device when oscillation is turned off; this parameter allows the plugin to override the default position (the actual position is controlled by the "defaultVerticalSwing" parameter); valid values: Never (0) = turn off override, let device use default / After power on (1) = override the default position each time the device is powered on / After power on and swing disable (2) = override the default position each time the device is powered on and when oscillation is turned off (by the Home App) _(Each time powered on means that one of the enabled accessories (Heater Cooler or Fan) will be set to active)_
-  * **defaultVerticalSwing** - specify the vertical swing position to be used instead of device default when overriding is enabled (Device default (0) = use device default, same position as used by device by default without overriding / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)) _(Only the default position is changing to the selected one when turning on the device. All other positions are kept by the Home App. Turning off oscillation sets the selected fixed position.)_
+  * **modifyVerticalSwingPosition** - by default this plugin sets the vertical swing position to the default position of the AC device when oscillation is turned off and leaves the position untouched when the device is powered on; this parameter allows the plugin to modify the vertical swing position (the actual position is controlled by the "defaultVerticalSwing" and/or the "defaultFanVerticalSwing" parameters); valid values: Never (0) = do not modify vertical swing position, let device use default / Override default after power on (1) = override the default position each time the device is powered on _(Only the default position is changing to the selected one when turning on the device. All other positions are kept by the Home App.)_ / Override default after power on or osciallation off (2) = override the default position each time the device is powered on and when oscillation is turned off by the Home App _(Only the default position is changing to the selected one when turning on the device. All other positions are kept by the Home App. Turning off oscillation sets the selected fixed position.)_ / Always set after power on (3) = set the device to the specified vertical position each time it is powered on (regardless of the actual vertical position) / Always set after power on or osciallation off (4) = set the device to the specified vertical position each time it is powered on and when osciallation is turned off by the Home App (regardless of the actual vertical position) _(Each time powered on means that one of the enabled accessories (Heater Cooler or Fan) will be set to active)_
+  * **defaultVerticalSwing** - specify the vertical swing position to be used when the plugin modifies is; if overriding is selected, then this value is valid for both heating/cooling and fan modes; if always set is selected, then this value controls only the heating/cooling modes not fan mode; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
   * **fanControlEnabled** - by default fan mode is not supported by the plugin because Apple's Heater Cooler accessory does not support fan mode; setting this parameter to true adds an additional Fan accessory to the Home App and turns on fan mode support in the plugin
+  * **defaultFanVerticalSwing** - specify the vertical swing position to be set in fan mode when always set is selected; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
   * **disabled** - set to true if you do not want to control this device in the Home App _(can be used also to temporarily remove the device from Home App but not if the device is not responding on the network any more)_
 
 (*) these parameters are initalized only once on device enable; device must be disabled an re-enabled to apply a new value; name is customizable in Home App independently from Homebridge settings

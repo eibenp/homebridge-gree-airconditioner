@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import { Service, CharacteristicValue } from 'homebridge';
 
 import { GreeACPlatform, MyPlatformAccessory } from './platform';
-import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, OVERRIDE_DEFAULT_SWING, TS_TYPE, BINDING_TIMEOUT,
+import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, MODIFY_VERTICAL_SWING_POSITION, TS_TYPE, BINDING_TIMEOUT,
   TEMPERATURE_LIMITS, DEFAULT_DEVICE_CONFIG } from './settings';
 import { GreeAirConditionerTS } from './tsAccessory';
 import crypto from './crypto';
@@ -271,7 +271,7 @@ export class GreeAirConditioner {
       .onSet(this.setSwingMode.bind(this));
     this.Fan?.getCharacteristic(this.platform.Characteristic.SwingMode)
       .onGet(this.getSwingMode.bind(this))
-      .onSet(this.setSwingMode.bind(this));
+      .onSet(this.setFanSwingMode.bind(this));
 
     // register handlers for the Rotation Speed Characteristic
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.RotationSpeed)
@@ -368,10 +368,25 @@ export class GreeAirConditioner {
 
   async setSwingMode(value: CharacteristicValue) {
     const logValue = (value === this.platform.Characteristic.SwingMode.SWING_ENABLED) ? 'ENABLED' : 'DISABLED';
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Set SwingMode ->`, logValue);
     this.swingMode = (value === this.platform.Characteristic.SwingMode.SWING_ENABLED) ?
-      commands.swingVertical.value.full : (this.deviceConfig.overrideDefaultVerticalSwing === OVERRIDE_DEFAULT_SWING.always) ?
-        this.deviceConfig.defaultVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultVerticalSwing : commands.swingVertical.value.default;
+      commands.swingVertical.value.full : ([MODIFY_VERTICAL_SWING_POSITION.overrideDefPowerOnOscDisable,
+        MODIFY_VERTICAL_SWING_POSITION.setPowerOnOscDisable].includes(this.deviceConfig.modifyVerticalSwingPosition ||
+        DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition) ? this.deviceConfig.defaultVerticalSwing ||
+        DEFAULT_DEVICE_CONFIG.defaultVerticalSwing : DEFAULT_DEVICE_CONFIG.defaultVerticalSwing);
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Set SwingMode ->`, logValue + (logValue === 'DISABLED' ?
+      ` (Position: ${this.getKeyName(commands.swingVertical.value, this.swingMode)})` : ''));
+  }
+
+  async setFanSwingMode(value: CharacteristicValue) {
+    const logValue = (value === this.platform.Characteristic.SwingMode.SWING_ENABLED) ? 'ENABLED' : 'DISABLED';
+    this.swingMode = (value === this.platform.Characteristic.SwingMode.SWING_ENABLED) ?
+      commands.swingVertical.value.full : (this.deviceConfig.modifyVerticalSwingPosition ===
+        MODIFY_VERTICAL_SWING_POSITION.overrideDefPowerOnOscDisable ? this.deviceConfig.defaultVerticalSwing ||
+        DEFAULT_DEVICE_CONFIG.defaultVerticalSwing : (this.deviceConfig.modifyVerticalSwingPosition ===
+        MODIFY_VERTICAL_SWING_POSITION.setPowerOnOscDisable ? this.deviceConfig.defaultFanVerticalSwing ||
+        DEFAULT_DEVICE_CONFIG.defaultFanVerticalSwing : DEFAULT_DEVICE_CONFIG.defaultFanVerticalSwing));
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Set Fan SwingMode ->`, logValue + (logValue === 'DISABLED' ?
+      ` (Position: ${this.getKeyName(commands.swingVertical.value, this.swingMode)})` : ''));
   }
 
   async setRotationSpeed(value: CharacteristicValue) {
@@ -995,8 +1010,11 @@ export class GreeAirConditioner {
               break;
           }
         }
-        if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
-          DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing) && this.swingMode === commands.swingVertical.value.default) {
+        if (([MODIFY_VERTICAL_SWING_POSITION.overrideDefPowerOnOscDisable, MODIFY_VERTICAL_SWING_POSITION.overrideDefPowerOn].includes(
+          this.deviceConfig.modifyVerticalSwingPosition || DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition) &&
+          this.swingMode === commands.swingVertical.value.default) || ([MODIFY_VERTICAL_SWING_POSITION.setPowerOnOscDisable,
+          MODIFY_VERTICAL_SWING_POSITION.setPowerOn].includes(this.deviceConfig.modifyVerticalSwingPosition ||
+          DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition))) {
           const value = this.deviceConfig.defaultVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
           command[commands.swingVertical.code] = value;
           logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
@@ -1034,9 +1052,15 @@ export class GreeAirConditioner {
         command[commands.powerfulMode.code] = commands.powerfulMode.value.off;
         logValue += (logValue ? ', ' : '') + 'powerfulMode -> ' +
         this.getKeyName(commands.powerfulMode.value, commands.powerfulMode.value.off);
-        if ([OVERRIDE_DEFAULT_SWING.always, OVERRIDE_DEFAULT_SWING.powerOn].includes(this.deviceConfig.overrideDefaultVerticalSwing ||
-          DEFAULT_DEVICE_CONFIG.overrideDefaultVerticalSwing) && this.swingMode === commands.swingVertical.value.default) {
+        if ([MODIFY_VERTICAL_SWING_POSITION.overrideDefPowerOnOscDisable, MODIFY_VERTICAL_SWING_POSITION.overrideDefPowerOn].includes(
+          this.deviceConfig.modifyVerticalSwingPosition || DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition) &&
+          this.swingMode === commands.swingVertical.value.default) {
           const value = this.deviceConfig.defaultVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultVerticalSwing;
+          command[commands.swingVertical.code] = value;
+          logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
+        } else if ([MODIFY_VERTICAL_SWING_POSITION.setPowerOnOscDisable, MODIFY_VERTICAL_SWING_POSITION.setPowerOn].includes(
+          this.deviceConfig.modifyVerticalSwingPosition || DEFAULT_DEVICE_CONFIG.modifyVerticalSwingPosition)) {
+          const value = this.deviceConfig.defaultFanVerticalSwing || DEFAULT_DEVICE_CONFIG.defaultFanVerticalSwing;
           command[commands.swingVertical.code] = value;
           logValue += (logValue ? ', ' : '') + 'swingVertical -> ' + this.getKeyName(commands.swingVertical.value, value);
         }

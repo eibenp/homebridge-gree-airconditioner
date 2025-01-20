@@ -119,7 +119,7 @@
             "disabled": {
               "type": "boolean"
             },
-            "overrideDefaultVerticalSwing": {
+            "modifyVerticalSwingPosition": {
               "type": "integer",
               "required": true,
               "default": 0,
@@ -131,20 +131,75 @@
                   ]
                 },
                 {
-                  "title": "After power on",
+                  "title": "Override default after power on",
                   "enum": [
                     1
                   ]
                 },
                 {
-                  "title": "After power on and swing disable",
+                  "title": "Override default after power on or oscillation off",
                   "enum": [
                     2
+                  ]
+                },
+                {
+                  "title": "Always set after power on",
+                  "enum": [
+                    3
+                  ]
+                },
+                {
+                  "title": "Always set after power on or oscillation off",
+                  "enum": [
+                    4
                   ]
                 }
               ]
             },
             "defaultVerticalSwing": {
+              "type": "integer",
+              "required": true,
+              "default": 0,
+              "oneOf": [
+                {
+                  "title": "Device default",
+                  "enum": [
+                    0
+                  ]
+                },
+                {
+                  "title": "fixed Highest",
+                  "enum": [
+                    2
+                  ]
+                },
+                {
+                  "title": "fixed Higher",
+                  "enum": [
+                    3
+                  ]
+                },
+                {
+                  "title": "fixed Middle",
+                  "enum": [
+                    4
+                  ]
+                },
+                {
+                  "title": "fixed Lower",
+                  "enum": [
+                    5
+                  ]
+                },
+                {
+                  "title": "fixed Lowest",
+                  "enum": [
+                    6
+                  ]
+                }
+              ]
+            },
+            "defaultFanVerticalSwing": {
               "type": "integer",
               "required": true,
               "default": 0,
@@ -397,10 +452,10 @@
               }
             },
             {
-              "key": "devices[].overrideDefaultVerticalSwing",
+              "key": "devices[].modifyVerticalSwingPosition",
               "flex": "1 1 50%",
-              "title": "Override default vertical position:",
-              "description": "When to override vertical swing position",
+              "title": "Modify vertical position:",
+              "description": "When to modify vertical swing position",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -409,18 +464,27 @@
               "key": "devices[].defaultVerticalSwing",
               "flex": "1 1 50%",
               "title": "Vertical position:",
-              "description": "Default vertical swing position to be used istead of what device considers a default",
+              "description": "Vertical swing position to be used when overriding enabled or set in heating/cooling modes",
               "condition": {
-                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].overrideDefaultVerticalSwing !== 0);"
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].modifyVerticalSwingPosition !== 0);"
               }
             },
             {
               "key": "devices[].fanControlEnabled",
-              "flex": "1 1 100%",
+              "flex": "1 1 50%",
               "title": "Fan control enabled",
               "description": "If checked, a fan control is added to Home App and fan mode support is enabled",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].defaultFanVerticalSwing",
+              "flex": "1 1 50%",
+              "title": "Vertical fan position:",
+              "description": "Vertical swing position to be set in fan mode",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && [3, 4].includes(model.devices[arrayIndices].modifyVerticalSwingPosition) && model.devices[arrayIndices].fanControlEnabled === true);"
               }
             }
           ]

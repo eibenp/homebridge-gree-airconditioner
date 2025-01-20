@@ -9,10 +9,12 @@ export const PLATFORM_NAME = 'GREEAirConditioner';
  */
 export const PLUGIN_NAME = 'homebridge-gree-ac';
 
-export const OVERRIDE_DEFAULT_SWING = {
+export const MODIFY_VERTICAL_SWING_POSITION = {
   never: 0,
-  powerOn: 1,
-  always: 2,
+  overrideDefPowerOn: 1,
+  overrideDefPowerOnOscDisable: 2,
+  setPowerOn: 3,
+  setPowerOnOscDisable: 4,
 };
 
 export const ENCRYPTION_VERSION = {
@@ -45,7 +47,9 @@ export interface DeviceConfig {
   temperatureStepSize?: number;
   disabled?: boolean;
   defaultVerticalSwing?: number;
-  overrideDefaultVerticalSwing?: number;
+  defaultFanVerticalSwing?: number;
+  overrideDefaultVerticalSwing?: number; // deprecated, new parameter: modifyVerticalSwingPosition
+  modifyVerticalSwingPosition?: number;
   encryptionVersion?: number;
   port?: number;
   ip?: string;
@@ -56,7 +60,8 @@ export interface DeviceConfig {
 interface DefaultDeviceConfig extends DeviceConfig {
   temperatureStepSize: number;
   defaultVerticalSwing: number;
-  overrideDefaultVerticalSwing: number;
+  defaultFanVerticalSwing: number;
+  modifyVerticalSwingPosition: number;
   encryptionVersion: number;
 }
 
@@ -70,7 +75,8 @@ export const DEFAULT_DEVICE_CONFIG: DefaultDeviceConfig = {
   temperatureSensor: TS_TYPE.disabled,
   temperatureStepSize: TEMPERATURE_STEPS.fahrenheit,
   defaultVerticalSwing: commands.swingVertical.value.default,
-  overrideDefaultVerticalSwing: OVERRIDE_DEFAULT_SWING.never,
+  defaultFanVerticalSwing: commands.swingVertical.value.default,
+  modifyVerticalSwingPosition: MODIFY_VERTICAL_SWING_POSITION.never,
   encryptionVersion: ENCRYPTION_VERSION.auto,
 };
 
