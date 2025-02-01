@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.2.0] - 2025-02-01
+
+**<ins>Reminders:</ins>**
+- **All devices on the local subnet are automatically added to Homebridge since v2.1.7 Please use the "disabled" parameter to skip any device!**
+- **If the fan control is disabled, the Home App interprets the device in fan mode as if it is turned off.**
+- **Similarly, the dry mode is considered to be off by the Home App, because the dry mode is not supported at all.**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+The following configuration parameters are applied only once, when the device is enabled:
+* name
+* model
+* speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+* temperatureStepSize
+
+Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device breaks all associated automations in Home App also.
+
+### New features
+- Support of customized default parameters
+- Support of fan mode
+- 'Override default vertical swing position' functionality extended with new cases (also configuration parameter renamed) _Please see the documentation for more details!_
+
+### Fixes
+- Minimal configuration without a "devices" entry failed to load
+- Sometimes the plugin has sent multiple power commands to the device before device response
+- Vertical swing position was overridden on mode change, which was not the designed and documented behaviour
+- In some cases, certain speed values ​​could not be set
+- Plugin allowed sending some unsupported combination of parameters to the device
+
+### Updates
+- In versions before v2.2.0 fan and dry modes were considered to be auto heating-cooling mode by Home App. Now - by default - these modes are considered to be off by Home App, but fan mode support can be enabled.
+
 ## [2.1.7] - 2024-12-27
 
 **Unlisted devices are not skipped any more if they are on the same subnet. If you want to skip them please add these devices to the configuration and set the "disabled" parameter to true!**
