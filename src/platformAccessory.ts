@@ -1667,10 +1667,12 @@ export class GreeAirConditioner {
               } else {
                 this.status[col] = pack.dat[i];
               }
-              if (col === commands.power.code && pack.dat[i] === this.powerPending) {
+              if (col === commands.power.code) {
+                // power status received -> no more power change pending state
                 this.powerPending = -1;
               }
-              if (col === commands.mode.code && pack.dat[i] === this.modePending) {
+              if (col === commands.mode.code) {
+                // mode status received -> no more mode change pending state
                 this.modePending = -1;
               }
             });
@@ -1704,10 +1706,12 @@ export class GreeAirConditioner {
                 updatedParams.push(`${cmd}: ${oldval} -> ${newval}`);
               }
               this.status[opt] = value;
-              if (opt === commands.power.code && value === this.powerPending) {
+              if (opt === commands.power.code) {
+                // response to power command -> no more power change pending state
                 this.powerPending = -1;
               }
-              if (opt === commands.mode.code && value === this.modePending) {
+              if (opt === commands.mode.code) {
+                // response to mode command -> no more mode change pending state
                 this.modePending = -1;
               }
             });
