@@ -83,7 +83,7 @@ If successfully installed and configured, your devices will appear on the Homebr
 
 Always check out your current settings in Homebridge and also in Home App (including scenes and automation rules) before you start an upgrade!
 
-### v2.1.7 to v2.2.0
+### v2.1.7 to v2.2.x
 
 The upgrade is automatic by installing the latest version. It is highly recommended to update the configuration settings because some new parameters were introduced in v2.2.0 and there is also a parameter which was renamed.
 
