@@ -40,6 +40,8 @@ The plugin finds all supported units automatically if they are located on the sa
 
 IPv4 address is required. GREE Air Conditioners do not support IPv6 nor other network protocols.
 
+All devices must have an IP address which is reachable on the network for the plugin. Devices behind a bridge (e.g. GCloud) are not supported.
+
 This is not plugin dependency but its good to know that Homebridge server host address must be static. If the host address changes then Homebridge looses connection with Home App and only Homebridge restart restores the connection.
 
 ## Supported devices
