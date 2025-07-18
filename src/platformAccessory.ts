@@ -1028,6 +1028,12 @@ export class GreeAirConditioner {
       command[commands.power.code] = powerValue
       logValue += (logValue ? ", " : "") + "power -> " + this.getKeyName(commands.power.value, powerValue)
     }
+    // Add buzzer disable command when powering on
+    if (!this.deviceConfig.buzzerEnabled) {
+      command[commands.buzzer.code] = commands.buzzer.value.off
+      logValue +=
+        (logValue ? ", " : "") + "buzzer -> " + this.getKeyName(commands.buzzer.value, commands.buzzer.value.off)
+    }
     if (powerValue === commands.power.value.on) {
       switch (
         this.HeaterCooler?.getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState).value ||
