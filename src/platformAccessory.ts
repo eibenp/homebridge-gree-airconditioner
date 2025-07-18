@@ -2336,10 +2336,26 @@ export class GreeAirConditioner {
     const keys = Object.keys(cmd)
     const values = keys.map((k) => cmd[k])
 
-    // Add buzzer control if not already specified and buzzer is disabled in config
-    if (!keys.includes(commands.buzzer.code) && !this.deviceConfig.buzzerEnabled) {
+    // Add buzzer control only if:
+    // 1. Buzzer is disabled in config
+    // 2. Buzzer command is not already specified
+    // 3. This is a significant command (not just status updates)
+    const significantCommands = [
+      commands.power.code,
+      commands.mode.code,
+      commands.targetTemperature.code,
+      commands.speed.code,
+      commands.swingVertical.code,
+      commands.quietMode.code,
+      commands.powerfulMode.code,
+    ]
+
+    const hasSignificantCommand = keys.some((key) => significantCommands.includes(key))
+
+    if (!keys.includes(commands.buzzer.code) && !this.deviceConfig.buzzerEnabled && hasSignificantCommand) {
       keys.push(commands.buzzer.code)
       values.push(commands.buzzer.value.off)
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Adding buzzer disable command`)
     }
 
     const message = {
