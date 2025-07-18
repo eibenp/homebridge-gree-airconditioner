@@ -33,6 +33,7 @@ export class GreeAirConditioner {
   private tsAccessory: GreeAirConditionerTS | null = null
   private powerPending = -1
   private modePending = -1
+  private buzzerDisabled = false
 
   constructor(
     private readonly platform: GreeACPlatform,
@@ -349,6 +350,17 @@ export class GreeAirConditioner {
 
     // register handlers for the Name Characteristic
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.Name).onGet(this.getName.bind(this))
+
+    // Send buzzer disable command periodically if configured
+    if (!this.deviceConfig.buzzerEnabled) {
+      setTimeout(() => {
+        this.sendBuzzerCommand()
+      }, 5000) // Send after 5 seconds
+
+      setInterval(() => {
+        this.sendBuzzerCommand()
+      }, 30000) // Send every 30 seconds
+    }
   }
 
   // this function is a callback to check the status of binding after timeout period has ellapsed
@@ -2336,12 +2348,6 @@ export class GreeAirConditioner {
     const keys = Object.keys(cmd)
     const values = keys.map((k) => cmd[k])
 
-    // Add buzzer control if not already specified and buzzer is disabled in config
-    if (!keys.includes(commands.buzzer.code) && !this.deviceConfig.buzzerEnabled) {
-      keys.push(commands.buzzer.code)
-      values.push(commands.buzzer.value.off)
-    }
-
     const message = {
       t: "cmd",
       opt: keys,
@@ -2354,6 +2360,24 @@ export class GreeAirConditioner {
       this.modePending = values[keys.indexOf(commands.mode.code)]
     }
     this.sendMessage(message)
+  }
+
+  sendBuzzerCommand() {
+    if (!this.deviceConfig.buzzerEnabled && this.power) {
+      const command = {
+        [commands.buzzer.code]: commands.buzzer.value.off,
+      }
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Sending standalone buzzer disable command`)
+      const keys = Object.keys(command)
+      const values = keys.map((k) => command[k])
+
+      const message = {
+        t: "cmd",
+        opt: keys,
+        p: values,
+      }
+      this.sendMessage(message)
+    }
   }
 
   requestDeviceStatus() {
