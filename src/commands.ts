@@ -1,13 +1,13 @@
 const commands = {
   power: {
-    code: 'Pow',
+    code: "Pow",
     value: {
       off: 0,
       on: 1,
     },
   },
   mode: {
-    code: 'Mod',
+    code: "Mod",
     value: {
       auto: 0,
       cool: 1,
@@ -17,23 +17,23 @@ const commands = {
     },
   },
   targetTemperature: {
-    code: 'SetTem',
+    code: "SetTem",
   },
   temperature: {
-    code: 'TemSen',
+    code: "TemSen",
   },
   units: {
-    code: 'TemUn',
+    code: "TemUn",
     value: {
       celsius: 0,
       fahrenheit: 1,
     },
   },
   temperatureOffset: {
-    code: 'TemRec',
+    code: "TemRec",
   },
   speed: {
-    code: 'WdSpd',
+    code: "WdSpd",
     value: {
       auto: 0,
       low: 1,
@@ -44,7 +44,7 @@ const commands = {
     },
   },
   swingHorizontal: {
-    code: 'SwingLfRig',
+    code: "SwingLfRig",
     value: {
       default: 0,
       full: 1,
@@ -56,7 +56,7 @@ const commands = {
     },
   },
   swingVertical: {
-    code: 'SwUpDn',
+    code: "SwUpDn",
     value: {
       default: 0,
       full: 1, // swing in full range
@@ -73,38 +73,38 @@ const commands = {
     },
   },
   xFan: {
-    code: 'Blo',
+    code: "Blo",
     value: {
       off: 0,
       on: 1,
     },
   },
   light: {
-    code: 'Lig',
+    code: "Lig",
     value: {
       off: 0,
       on: 1,
     },
   },
   quietMode: {
-    code: 'Quiet',
+    code: "Quiet",
     value: {
       off: 0,
       on: 2,
     },
   },
   powerfulMode: {
-    code: 'Tur',
+    code: "Tur",
     value: {
       off: 0,
       on: 1,
     },
   },
   HeatCoolType: {
-    code: 'HeatCoolType',
+    code: "HeatCoolType",
   },
   energySaving: {
-    code: 'SvSt',
+    code: "SvSt",
     value: {
       off: 0,
       on: 1,
@@ -112,43 +112,51 @@ const commands = {
   },
   // sleepMode and sleep should be syncronized (to turn on set both to 1 / to turn off set both to 0)
   sleepMode: {
-    code: 'SwhSlp',
+    code: "SwhSlp",
     value: {
       off: 0,
       on: 1,
     },
   },
   sleep: {
-    code: 'SlpMod',
+    code: "SlpMod",
     value: {
       off: 0,
       on: 1,
     },
   },
   time: {
-    code: 'time',
+    code: "time",
   },
   air: {
-    code: 'Air',
+    code: "Air",
     value: {
       off: 0,
       on: 1,
     },
   },
   health: {
-    code: 'Health',
+    code: "Health",
     value: {
       off: 0,
       on: 1,
     },
   },
-  nofrost: { // nofrost on = heating to 8 ℃
-    code: 'StHt',
+  nofrost: {
+    // nofrost on = heating to 8 ℃
+    code: "StHt",
     value: {
       off: 0,
       on: 1,
     },
   },
-};
+  buzzer: {
+    code: "Buzzer_ON_OFF",
+    value: {
+      on: 0, // beep enabled
+      off: 1, // beep disabled
+    },
+  },
+}
 
-export default commands;
+export default commands
