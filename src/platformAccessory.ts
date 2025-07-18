@@ -33,7 +33,6 @@ export class GreeAirConditioner {
   private tsAccessory: GreeAirConditionerTS | null = null
   private powerPending = -1
   private modePending = -1
-  private buzzerDisabled = false
 
   constructor(
     private readonly platform: GreeACPlatform,
@@ -2337,23 +2336,10 @@ export class GreeAirConditioner {
     const keys = Object.keys(cmd)
     const values = keys.map((k) => cmd[k])
 
-    // Add buzzer control only once after power on, if buzzer is disabled in config
-    if (
-      !keys.includes(commands.buzzer.code) &&
-      !this.deviceConfig.buzzerEnabled &&
-      keys.includes(commands.power.code) &&
-      values[keys.indexOf(commands.power.code)] === commands.power.value.on &&
-      !this.buzzerDisabled
-    ) {
+    // Add buzzer control if not already specified and buzzer is disabled in config
+    if (!keys.includes(commands.buzzer.code) && !this.deviceConfig.buzzerEnabled) {
       keys.push(commands.buzzer.code)
       values.push(commands.buzzer.value.off)
-      this.buzzerDisabled = true
-      this.platform.log.debug(`[${this.getDeviceLabel()}] Adding buzzer disable command (first time after power on)`)
-    }
-
-    // Reset buzzer flag when device is turned off
-    if (keys.includes(commands.power.code) && values[keys.indexOf(commands.power.code)] === commands.power.value.off) {
-      this.buzzerDisabled = false
     }
 
     const message = {
