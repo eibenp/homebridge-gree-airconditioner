@@ -153,8 +153,8 @@ const commands = {
   buzzer: {
     code: "Buzzer_ON_OFF",
     value: {
-      on: 1, // beep enabled (invertido para teste)
-      off: 0, // beep disabled (invertido para teste)
+      on: 0, // beep enabled
+      off: 1, // beep disabled
     },
   },
 }
