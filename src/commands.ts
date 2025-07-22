@@ -149,6 +149,13 @@ const commands = {
       on: 1,
     },
   },
+  buzzer: { // this is not persistent, AC does not remember it, but value = 1 can be used to send a command without a confirmation beep
+    code: 'Buzzer_ON_OFF',
+    value: {
+      off: 1,
+      on: 0,
+    },
+  },
 };
 
 export default commands;
