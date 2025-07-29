@@ -46,15 +46,11 @@
               "oneOf": [
                 {
                   "title": "3-step model",
-                  "enum": [
-                    3
-                  ]
+                  "enum": [3]
                 },
                 {
                   "title": "5-step model",
-                  "enum": [
-                    5
-                  ]
+                  "enum": [5]
                 }
               ]
             },
@@ -92,21 +88,15 @@
               "oneOf": [
                 {
                   "title": "Disabled",
-                  "enum": [
-                    "disabled"
-                  ]
+                  "enum": ["disabled"]
                 },
                 {
                   "title": "Child accessory",
-                  "enum": [
-                    "child"
-                  ]
+                  "enum": ["child"]
                 },
                 {
                   "title": "Separate accessory",
-                  "enum": [
-                    "separate"
-                  ]
+                  "enum": ["separate"]
                 }
               ]
             },
@@ -126,33 +116,23 @@
               "oneOf": [
                 {
                   "title": "Never",
-                  "enum": [
-                    0
-                  ]
+                  "enum": [0]
                 },
                 {
                   "title": "Override default after power on",
-                  "enum": [
-                    1
-                  ]
+                  "enum": [1]
                 },
                 {
                   "title": "Override default after power on or oscillation off",
-                  "enum": [
-                    2
-                  ]
+                  "enum": [2]
                 },
                 {
                   "title": "Always set after power on",
-                  "enum": [
-                    3
-                  ]
+                  "enum": [3]
                 },
                 {
                   "title": "Always set after power on or oscillation off",
-                  "enum": [
-                    4
-                  ]
+                  "enum": [4]
                 }
               ]
             },
@@ -163,39 +143,27 @@
               "oneOf": [
                 {
                   "title": "Device default",
-                  "enum": [
-                    0
-                  ]
+                  "enum": [0]
                 },
                 {
                   "title": "fixed Highest",
-                  "enum": [
-                    2
-                  ]
+                  "enum": [2]
                 },
                 {
                   "title": "fixed Higher",
-                  "enum": [
-                    3
-                  ]
+                  "enum": [3]
                 },
                 {
                   "title": "fixed Middle",
-                  "enum": [
-                    4
-                  ]
+                  "enum": [4]
                 },
                 {
                   "title": "fixed Lower",
-                  "enum": [
-                    5
-                  ]
+                  "enum": [5]
                 },
                 {
                   "title": "fixed Lowest",
-                  "enum": [
-                    6
-                  ]
+                  "enum": [6]
                 }
               ]
             },
@@ -206,64 +174,46 @@
               "oneOf": [
                 {
                   "title": "Device default",
-                  "enum": [
-                    0
-                  ]
+                  "enum": [0]
                 },
                 {
                   "title": "fixed Highest",
-                  "enum": [
-                    2
-                  ]
+                  "enum": [2]
                 },
                 {
                   "title": "fixed Higher",
-                  "enum": [
-                    3
-                  ]
+                  "enum": [3]
                 },
                 {
                   "title": "fixed Middle",
-                  "enum": [
-                    4
-                  ]
+                  "enum": [4]
                 },
                 {
                   "title": "fixed Lower",
-                  "enum": [
-                    5
-                  ]
+                  "enum": [5]
                 },
                 {
                   "title": "fixed Lowest",
-                  "enum": [
-                    6
-                  ]
+                  "enum": [6]
                 }
               ]
             },
-            "encryptionVersion" : {
+            "encryptionVersion": {
               "type": "integer",
               "required": true,
               "default": 0,
               "oneOf": [
                 {
                   "title": "Auto",
-                  "enum": [
-                    0
-                  ]
+                  "enum": [0]
                 },
                 {
                   "title": "v1",
-                  "enum": [
-                    1
-                  ]
+                  "enum": [1]
                 },
                 {
                   "title": "v2",
-                  "enum": [
-                    2
-                  ]
+                  "enum": [2]
                 }
               ]
             },
@@ -279,6 +229,10 @@
             },
             "fanControlEnabled": {
               "type": "boolean"
+            },
+            "buzzerEnabled": {
+              "type": "boolean",
+              "default": true
             }
           }
         }
@@ -474,6 +428,15 @@
               "flex": "1 1 50%",
               "title": "Fan control enabled",
               "description": "If checked, a fan control is added to Home App and fan mode support is enabled",
+              "condition": {
+                "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
+              }
+            },
+            {
+              "key": "devices[].buzzerEnabled",
+              "flex": "1 1 50%",
+              "title": "Buzzer enabled",
+              "description": "If unchecked, the device beep sound will be disabled",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^[a-f0-9]{12}|default$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
