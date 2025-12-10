@@ -136,3 +136,4 @@ web_modules/
 test/
 
 GREE Fahrenheit calculation.xlsx
+.npmrc
