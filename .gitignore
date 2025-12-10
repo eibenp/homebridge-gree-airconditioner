@@ -2,6 +2,7 @@
 dist
 
 # ------------- Defaults ------------- #
+.DS_Store
 
 # Logs
 logs
@@ -118,4 +119,10 @@ dist
 .yarn/unplugged
 .yarn/build-state.yml
 .pnp.*
+
+# Webstorm
+.idea
+
+/test/hbConfig
+
 GREE Fahrenheit calculation.xlsx

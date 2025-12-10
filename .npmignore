@@ -7,7 +7,7 @@ src
 .github
 
 # eslint
-.eslintrc
+eslint.config.js
 
 # typescript
 tsconfig.json
@@ -132,4 +132,7 @@ web_modules/
 .yarn/unplugged
 .yarn/build-state.yml
 .pnp.*
+
+test/
+
 GREE Fahrenheit calculation.xlsx

@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.2.2] - 2025-12-10
+
+**<ins>Reminders:</ins>**
+- **All devices on the local subnet are automatically added to Homebridge since v2.1.7** Please use the "disabled" parameter to disable individual devices, or disable automatic device detection globally starting from version v2.2.2.
+- **If the fan control is disabled, the Home App interprets the device in fan mode as if it is turned off.**
+- **Similarly, the dry mode is considered to be off by the Home App, because the dry mode is not supported at all.**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+The following configuration parameters are applied only once, when the device is enabled:
+* name
+* model
+* speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+* temperatureStepSize
+
+Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device breaks all associated automations in Home App also.
+
+### New features
+- Define silent time range when AC unit doesn't beep on commands (not all firmware versions support muting)
+- It is possible to disable device auto detection
+
+### Updates
+- Show deprecated configuration parameter warning only once per device
+- If Homebridge is configured to use only selected network interfaces then the plugin's auto detection will work only on these selected interfaces
+
+#### Updated dependencies
+- Added Node.js v24 to supported versions (20.19.0 or later, 22.13.0 or later and 24.0.0 or later are supported)
+- Node.js v18 is not supported any more
+
 ## [2.2.1] - 2025-05-26
 
 **<ins>Reminders:</ins>**

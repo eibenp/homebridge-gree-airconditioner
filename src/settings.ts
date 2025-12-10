@@ -1,11 +1,11 @@
-import commands from './commands';
+import commands from './commands.js';
 /**
  * This is the name of the platform that users will use to register the plugin in the Homebridge config.json
  */
 export const PLATFORM_NAME = 'GREEAirConditioner';
 
 /**
- * This must match the name of your plugin as defined the package.json
+ * This must match the name of your plugin as defined the package.json `name` property
  */
 export const PLUGIN_NAME = 'homebridge-gree-ac';
 
@@ -54,6 +54,7 @@ export interface DeviceConfig {
   port?: number;
   ip?: string;
   fanControlEnabled?: boolean;
+  silentTimeRange?: string;
 }
 
 // in DEFAULT_DEVICE_CONFIG we don't need nullable entries -> override optional entries with required ones
@@ -89,7 +90,7 @@ export const TEMPERATURE_LIMITS = {
 
 export const UDP_SCAN_PORT = 7000;
 
-export const TEMPERATURE_TABLE = {
+export const TEMPERATURE_TABLE: { [key: string]: number } = {
   //key: 1/2°C     °F °F->°C
   '8,0': 8,     // 46  7.77
   '8,1': 8.5,   // 47  8.33

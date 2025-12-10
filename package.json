@@ -1,27 +1,19 @@
 {
-  "private": false,
-  "displayName": "GREE Air Conditioner",
   "name": "homebridge-gree-ac",
-  "version": "2.2.1",
+  "displayName": "GREE Air Conditioner",
+  "type": "module",
+  "version": "2.2.2",
+  "private": false,
   "description": "Control GREE Air Conditioners from Homebridge",
+  "author": "Peter Eiben",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/eibenp/homebridge-gree-airconditioner#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eibenp/homebridge-gree-airconditioner.git"
+    "url": "https://github.com/eibenp/homebridge-gree-airconditioner.git"
   },
   "bugs": {
     "url": "https://github.com/eibenp/homebridge-gree-airconditioner/issues"
-  },
-  "engines": {
-    "node": "^18.15.0 || ^20.7.0 || ^22",
-    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
-  },
-  "main": "dist/index.js",
-  "scripts": {
-    "lint": "eslint src/**.ts --max-warnings=0",
-    "watch": "npm run build && npm link && nodemon",
-    "build": "genversion --esm -s src/version.ts && rimraf ./dist && tsc",
-    "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
     "homebridge-plugin",
@@ -30,20 +22,32 @@
     "homebridge heatercooler",
     "gree air conditioner"
   ],
+  "main": "dist/index.js",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || ^24.0.0",
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
+  },
+  "scripts": {
+    "build": "genversion --esm -s src/version.ts && rimraf ./dist && tsc",
+    "lint": "eslint . --max-warnings=0",
+    "prepublishOnly": "npm run lint && npm run build",
+    "watch": "npm run build && npm link && nodemon",
+    "global": "npm run build && npm link"
+  },
   "dependencies": {
-    "homebridge-config-ui-x": "^4.59.0"
+    "homebridge-lib": "^7.1.13"
   },
   "devDependencies": {
-    "@types/node": "^18.18.0",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
-    "eslint": "^8.45.0",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
     "genversion": "^3.2.0",
-    "homebridge": "^2.0.0-beta.23",
-    "nodemon": "^2.0.22",
-    "rimraf": "^3.0.2",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.9.5"
+    "homebridge": "^2.0.0-beta.56",
+    "nodemon": "^3.1.11",
+    "rimraf": "^6.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4"
   },
   "funding": {
     "type": "paypal",

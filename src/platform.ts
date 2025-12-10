@@ -1,14 +1,19 @@
 import dgram from 'dgram';
-import crypto from './crypto';
-import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic, Categories } from 'homebridge';
+import crypto from './crypto.js';
+import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
+import { Categories } from 'homebridge';
 import { networkInterfaces } from 'os';
 import { readFileSync } from 'fs';
 
+import { GreeAirConditioner } from './platformAccessory.js';
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, MODIFY_VERTICAL_SWING_POSITION, ENCRYPTION_VERSION, TS_TYPE,
-  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS} from './settings';
-import { GreeAirConditioner } from './platformAccessory';
-import commands from './commands';
-import { version } from './version';
+  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS } from './settings.js';
+
+import commands from './commands.js';
+import { version } from './version.js';
+
+// This is only required when using Custom Services and Characteristics not support by HomeKit
+//import { EveHomeKitTypes } from 'homebridge-lib/EveHomeKitTypes';
 
 export interface MyPlatformAccessory extends PlatformAccessory {
   bound?: boolean;
@@ -21,49 +26,74 @@ export interface MyPlatformAccessory extends PlatformAccessory {
  * parse the user config and discover/register accessories with Homebridge.
  */
 export class GreeACPlatform implements DynamicPlatformPlugin {
-  public readonly Service: typeof Service = this.api.hap.Service;
-  public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
+  public readonly Service: typeof Service;
+  public readonly Characteristic: typeof Characteristic;
 
   // this is used to track restored cached accessories
   private devices: Record<string, MyPlatformAccessory>;
   private processedDevices: Record<string, boolean>;
   private skippedDevices: Record<string, boolean>;
+  private warningShown: Record<string, boolean>;
+
   private socket: dgram.Socket;
   private pluginAddresses: Record<string, string> = {};
   public ports: number[] = [];
   private tempUnit: string;
 
+  // This is only required when using Custom Services and Characteristics not support by HomeKit
+   
+  //public readonly CustomServices: any;
+   
+  //public readonly CustomCharacteristics: any;
+
   constructor(
-    public readonly log: Logger,
+    public readonly log: Logging,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
+    this.Service = api.hap.Service;
+    this.Characteristic = api.hap.Characteristic;
+
+    // This is only required when using Custom Services and Characteristics not support by HomeKit
+    //this.CustomServices = new EveHomeKitTypes(this.api).Services;
+    //this.CustomCharacteristics = new EveHomeKitTypes(this.api).Characteristics;
+
     this.devices = {};
     this.processedDevices = {};
     this.skippedDevices = {};
-    this.pluginAddresses = this.getNetworkAddresses();
+    this.warningShown = {};
+
+    // get temperature unit from Homebridge UI config
+    const configPath = this.api.user.configPath();
+    const cfg = JSON.parse(readFileSync(configPath).toString());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const configPlatform = cfg?.platforms?.find((item: any) => item.platform === 'config') || {};
+    this.tempUnit = configPlatform?.tempUnits || 'f';
+    if (!['f', 'c'].includes(this.tempUnit)) {
+      this.tempUnit = 'f';
+    }
+    this.log.debug(`Temperature display unit is ${this.tempUnit === 'f' ? 'Fahrenheit (°F)' : 'Celsius (°C)'}`);
+
+    // log auto detection parameter
+    if (this.config.disableAutoDetection === true) {
+      this.log.debug('Auto detection disabled');
+    }
+
+    // network initialization
+    this.pluginAddresses = this.getNetworkAddresses(cfg?.bridge?.bind);
     if (Object.entries(this.pluginAddresses).length > 0) {
       this.log.debug('Device detection address list {(address : netmask) pairs}:', this.pluginAddresses);
     } else {
       this.log.error('Error: Homebridge host has no IPv4 address');
     }
     // if no IPv4 address found we create socket for IPv6
-    this.socket = dgram.createSocket({type: (Object.entries(this.pluginAddresses).length > 0) ? 'udp4' : 'udp6', reuseAddr: true});
+    this.socket = dgram.createSocket({ type: (Object.entries(this.pluginAddresses).length > 0) ? 'udp4' : 'udp6', reuseAddr: true });
     this.socket.on('error', (err) => {
       this.log.error('Network - Error:', err.message);
     });
     this.socket.on('close', () => {
       this.log.debug('Network - Connection closed');
     });
-    // get temperature unit from Homebridge UI config
-    const configPath = this.api.user.configPath();
-    const cfg = JSON.parse(readFileSync(configPath).toString());
-    const configPlatform = cfg?.platforms?.find((item) => item.platform === 'config') || {};
-    this.tempUnit = configPlatform?.tempUnits || 'f';
-    if (!['f', 'c'].includes(this.tempUnit)) {
-      this.tempUnit = 'f';
-    }
-    this.log.debug(`Temperature display unit is ${this.tempUnit === 'f' ? 'Fahrenheit (°F)' : 'Celsius (°C)'}`);
     this.log.debug('Finished initializing platform');
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -71,7 +101,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     // in order to ensure they weren't added to homebridge already. This event can also be used
     // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
-      log.debug('Executed didFinishLaunching callback');
+      log.debug('Executing didFinishLaunching callback');
       if (Object.entries(this.pluginAddresses).length === 0) {
         this.socket.close();
         this.log.error('Network - Error: No IPv4 host address found');
@@ -85,12 +115,12 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
 
   /**
    * This function is invoked when homebridge restores cached accessories from disk at startup.
-   * It should be used to setup event handlers for characteristics and update respective values.
+   * It should be used to set up event handlers for characteristics and update respective values.
    */
   configureAccessory(accessory: MyPlatformAccessory) {
     this.log.debug('Loading accessory from cache:', accessory.displayName, JSON.stringify(accessory.context.device));
 
-    // add the restored accessory to the accessories cache so we can track if it has already been registered
+    // add the restored accessory to the accessories cache, so we can track if it has already been registered
     if (accessory.context?.device?.mac) {
       if (!accessory.context.deviceType || accessory.context.deviceType === 'HeaterCooler') {
         accessory.bound = false;
@@ -113,6 +143,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
    * Accessories must only be registered once, previously created accessories
    * must not be registered again to prevent "duplicate UUID" errors.
    */
+
   bindCallback() {
     this.log.success(`${PLATFORM_NAME} (${PLUGIN_NAME}) v%s is running on UDP port %d`, version, this.socket.address().port);
     this.ports.push(this.socket.address().port);
@@ -133,19 +164,19 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
   }
 
-  handleMessage = (msg, rinfo) => {
+  handleMessage = (msg: Buffer, rinfo: {address: string, family: string, port: number, size: number}) => {
     this.log.debug('handleMessage -> %s', msg.toString());
     try {
       let message;
       try{
         message = JSON.parse(msg.toString());
       } catch (e){
-        this.log.debug('handleMessage - unknown message from %s - BASE64 encoded message: %s', rinfo.address.toString(),
+        this.log.debug('handleMessage - unknown message from %s - BASE64 encoded message: %s', rinfo.address,
           Buffer.from(msg).toString('base64'));
         return;
       }
       if (message.i !== 1 || message.t !== 'pack') {
-        this.log.debug('handleMessage - unknown response from %s: %j', rinfo.address.toString(), message);
+        this.log.debug('handleMessage - unknown response from %s: %j', rinfo.address, message);
         return;
       }
       let pack, encryptionVersion:number;
@@ -165,12 +196,23 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         encryptionVersion = 2;
       }
       if (pack.t === 'dev') {
-        this.registerDevice({
-          ...pack,
-          address: rinfo.address,
-          port: rinfo.port,
-          encryptionVersion,
-        });
+        if (this.config.disableAutoDetection !== true || this.config.devices?.find((item: { mac?: string }) => item.mac === pack.mac) !==
+          undefined) {
+          this.registerDevice({
+            ...pack,
+            address: rinfo.address,
+            port: rinfo.port,
+            encryptionVersion,
+          });
+        } else {
+          if (this.config.disableAutoDetection === true && this.config.devices?.find((item: { mac?: string }) => item.mac === pack.mac) ===
+            undefined) {
+            if (this.skippedDevices[pack.mac] !== true) {
+              this.log.debug(`Accessory ${pack.mac} skipped`);
+              this.skippedDevices[pack.mac] = true;
+            }
+          }
+        }
       } else {
         this.log.debug('handleMessage - unknown package from %s: %j', rinfo.address.toString(), pack);
       }
@@ -180,18 +222,67 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
   };
 
-  registerDevice = (deviceInfo) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registerDevice = (deviceInfo: any) => {
     this.log.debug('registerDevice - deviceInfo:', JSON.stringify(deviceInfo));
-    const devcfg = this.config.devices?.find((item) => item.mac === deviceInfo.mac) || {};
+    const devcfg = this.config.devices?.find((item: { mac?: string }) => item.mac === deviceInfo.mac) || { mac: deviceInfo.mac };
+    if (!devcfg.disabled && deviceInfo.subCnt !== undefined) {
+      // this is a bridge and bridge is enabled
+      if (!this.skippedDevices[deviceInfo.mac]) {
+        this.log.warn(`Accessory ${deviceInfo.mac} (${devcfg?.name ?? (deviceInfo.name || deviceInfo.mac)}) is a bridge.` +
+        ' Bridge accessories and devices attached to a bridge are not supported. If you are ready to help plugin development then' +
+        'you can create an issue and post detailed debug log about your environment.');
+        // skip bridge, only subdevices are AC units
+        this.skippedDevices[deviceInfo.mac] = true;
+        if (!deviceInfo.subCnt || deviceInfo.subCnt <= 0) {
+          this.log.warn(`Warning: No device is attached to bridge '${devcfg?.name ?? (deviceInfo.name || deviceInfo.mac)}'`);
+          return;
+        }
+        // read subdevice parameters from configuration
+        const subDevices:[] = this.config.devices?.filter( (cfg: { mac?: string }) => cfg.mac?.endsWith(`@${deviceInfo.mac}`) &&
+          (cfg.mac as string).length > deviceInfo.mac.length + 1 ) || [];
+        // register subdevices
+        subDevices.forEach((cfg: { mac?: string }) => {
+          const subDeviceInfo = { ...deviceInfo };
+          subDeviceInfo.mac = cfg.mac;
+          subDeviceInfo.uid = cfg.mac?.substring(0, cfg.mac?.indexOf('@'));
+          if (subDeviceInfo.subCnt !== undefined) {
+            delete subDeviceInfo.subCnt;
+          }
+          if (subDeviceInfo.name) {
+            subDeviceInfo.name = `${subDeviceInfo.uid}@${subDeviceInfo.name}`;
+          }
+          this.log.debug('registerDevice - sub device:', subDeviceInfo.mac);
+          this.registerDevice(subDeviceInfo);
+        });
+        // try to register all subdevices -- this part may be removed
+        for (let i = 1; i <= deviceInfo.subCnt; i++) {
+          const subDeviceInfo = { ...deviceInfo };
+          subDeviceInfo.mac = `${i.toString()}@${deviceInfo.mac}`;
+          subDeviceInfo.uid = i;
+          if (subDeviceInfo.subCnt !== undefined) {
+            delete subDeviceInfo.subCnt;
+          }
+          if (subDeviceInfo.name) {
+            subDeviceInfo.name = `${subDeviceInfo.uid.toString()}@${subDeviceInfo.name}`;
+          }
+          this.log.debug('registerDevice - sub device:', subDeviceInfo.mac);
+          this.registerDevice(subDeviceInfo);
+        }
+      } else {
+        this.log.debug('registerDevice - already processed:', devcfg?.name ?? (deviceInfo.name || deviceInfo.mac), deviceInfo.mac);
+      }
+      return;
+    }
     const deviceConfig = {
       // parameters read from config
       ...devcfg,
       // fix incorrect values read from config but do not add any value if parameter is missing
       ...((devcfg.speedSteps && devcfg.speedSteps !== 3 && devcfg.speedSteps !== 5) || devcfg.speedSteps === 0 ?
-        {speedSteps: DEFAULT_DEVICE_CONFIG.speedSteps} : {}),
+        { speedSteps: DEFAULT_DEVICE_CONFIG.speedSteps } : {}),
       ...(devcfg.temperatureSensor && Object.values(TS_TYPE).includes((devcfg.temperatureSensor as string).toLowerCase()) ?
-        {temperatureSensor: (devcfg.temperatureSensor as string).toLowerCase()}
-        : (devcfg.temperatureSensor ? {temperatureSensor: DEFAULT_DEVICE_CONFIG.temperatureSensor} : {})),
+        { temperatureSensor: (devcfg.temperatureSensor as string).toLowerCase() }
+        : (devcfg.temperatureSensor ? { temperatureSensor: DEFAULT_DEVICE_CONFIG.temperatureSensor } : {})),
       ...(devcfg.minimumTargetTemperature &&
         (devcfg.minimumTargetTemperature < Math.min(TEMPERATURE_LIMITS.coolingMinimum, TEMPERATURE_LIMITS.heatingMinimum) ||
         devcfg.minimumTargetTemperature > Math.max(TEMPERATURE_LIMITS.coolingMaximum, TEMPERATURE_LIMITS.heatingMaximum)) ?
@@ -219,7 +310,8 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         { encryptionVersion: DEFAULT_DEVICE_CONFIG.encryptionVersion } : {}),
     };
     // assign customized default to missing parameters
-    Object.entries(this.config.devices?.find((item) => item.mac?.toLowerCase() === 'default' && !item.disabled) || {})
+    Object.entries(this.config.devices?.find((item: { mac?: string, disabled?: boolean }) => item.mac?.toLowerCase() === 'default' &&
+      !item?.disabled) || {})
       .forEach(([key, value]) => {
         if (!['mac', 'name', 'ip', 'port', 'disabled'].includes(key) && deviceConfig[key] === undefined) {
           deviceConfig[key] = value;
@@ -304,17 +396,37 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       delete deviceConfig.port;
     }
     // replace deprecated overrideDefaultVerticalSwing with new modifyVerticalSwingPosition
-    if (deviceConfig.overrideDefaultVerticalSwing !== undefined && !deviceConfig.modifyVerticalSwingPosition) {
+    if (deviceConfig.overrideDefaultVerticalSwing !== undefined && deviceConfig.modifyVerticalSwingPosition === undefined) {
       // found deprecated but missing new
-      this.log.warn('Deprecated configuration parameter found: overrideDefaultVerticalSwing - ' +
-        `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.overrideDefaultVerticalSwing} -> use modifyVerticalSwingPosition`);
+      if (!this.warningShown[`${deviceInfo.mac}_overrideDefaultVerticalSwing`]) {
+        this.log.warn('Deprecated configuration parameter found: overrideDefaultVerticalSwing - ' +
+          `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.overrideDefaultVerticalSwing} -> use modifyVerticalSwingPosition`);
+        this.warningShown[`${deviceInfo.mac}_overrideDefaultVerticalSwing`] = true;
+      }
       deviceConfig.modifyVerticalSwingPosition = deviceConfig.overrideDefaultVerticalSwing;
       delete deviceConfig.overrideDefaultVerticalSwing;
     } else if (deviceConfig.overrideDefaultVerticalSwing !== undefined && deviceConfig.modifyVerticalSwingPosition !== undefined) {
       // found both deprecated and new -> keep new only
-      this.log.warn('Deprecated configuration parameter found: overrideDefaultVerticalSwing - ' +
-        `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.overrideDefaultVerticalSwing} -> ignoring`);
+      if (!this.warningShown[`${deviceInfo.mac}_overrideDefaultVerticalSwing`]) {
+        this.log.warn('Deprecated configuration parameter found: overrideDefaultVerticalSwing - ' +
+          `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.overrideDefaultVerticalSwing} -> ignoring`);
+        this.warningShown[`${deviceInfo.mac}_overrideDefaultVerticalSwing`] = true;
+      }
       delete deviceConfig.overrideDefaultVerticalSwing;
+    }
+    // ignore invalid silentTimeRange
+    if (deviceConfig.silentTimeRange) {
+      const match =
+        (deviceConfig.silentTimeRange as string).match(/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]-(((0[0-9]|1[0-9]|2[0-3]):[0-5][0-9])|24:00)$/);
+      if (!match || (match && deviceConfig.silentTimeRange !== match[0])) {
+        // invalid parameter value (not in HH:MM-HH:MM format)
+        if (!this.warningShown[`${deviceInfo.mac}_silentTimeRange`]) {
+          this.log.warn('Invalid configuration parameter value found: silentTimeRange - ' +
+            `Accessory ${deviceInfo.mac} parameter value: ${deviceConfig.silentTimeRange} -> ignoring`);
+          this.warningShown[`${deviceInfo.mac}_silentTimeRange`] = true;
+        }
+        delete deviceConfig.silentTimeRange;
+      }
     }
     // force encryption version if set in config
     if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {
@@ -325,7 +437,11 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     let accessory: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac];
     let accessory_ts: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac + '_ts'];
 
-    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig?.mac || '000000000000')) { //do not skip unconfigured devices
+    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig?.mac.substring(deviceConfig?.mac.indexOf('@')+1))) {
+      if (!devcfg || Object.keys(devcfg).length === 0) {
+        this.log.debug('14 DEBUG:', deviceConfig);
+      }
+      //do not skip unconfigured devices
       if (!this.skippedDevices[deviceInfo.mac]) {
         this.log.info(`Accessory ${deviceInfo.mac} skipped`);
         this.skippedDevices[deviceInfo.mac] = true;
@@ -439,10 +555,20 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     });
   }
 
-  getNetworkAddresses() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getNetworkAddresses(bindInterfaces: any) {
     this.log.debug('Checking network interfaces');
-    const pluginAddresses = {};
-    const allInterfaces = networkInterfaces();
+    const pluginAddresses: Record<string, string> = {};
+    let allInterfaces;
+    if (bindInterfaces !== null && bindInterfaces !== undefined && bindInterfaces.length > 0) {
+      this.log.debug('Homebridge bound to:', bindInterfaces);
+      const filteredEntries = Object.entries(networkInterfaces()).filter(([key]) => {
+        return bindInterfaces.includes(key);
+      });
+      allInterfaces = Object.fromEntries(filteredEntries);
+    } else {
+      allInterfaces = networkInterfaces();
+    }
     for (const name of Object.keys(allInterfaces)) {
       const nets = allInterfaces[name];
       if (nets) {
@@ -461,16 +587,18 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         }
       }
     }
-    // Add IPs from configuration but only if at least one host address found
+    // Add IPs from configuration but only if at least one host address found (add only for valid mac addresses)
     if (Object.keys(pluginAddresses).length > 0) {
-      const devcfgs:[] = this.config.devices?.filter((item) => item.ip && !item.disabled) || [];
-      devcfgs.forEach((value) => {
-        const ip: string = value['ip'];
+      const devcfgs:[] = this.config.devices?.filter((item: { ip?: string, disabled?: boolean, mac?: string }) =>
+        item.ip && !item.disabled && /^[a-f0-9]{12}$/.test(item.mac || '')) || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      devcfgs.forEach((value: any) => {
+        const ip: string = value.ip;
         const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})(\.(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})){3}$/;
         if (ipv4Pattern.test(ip)) {
           this.log.debug('Found AC Unit address in configuration:', ip);
           const addrParts = ip.split('.');
-          const addresses = {};
+          const addresses: Record<string, boolean> = {};
           Object.keys(pluginAddresses).forEach((addr) => {
             const netmaskParts = pluginAddresses[addr].split('.');
             const broadcast = addrParts.map((e, i) => ((~Number(netmaskParts[i]) & 0xFF) | Number(e)).toString()).join('.');

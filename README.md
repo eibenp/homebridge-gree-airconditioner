@@ -13,7 +13,7 @@
 
 [Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home App](https://www.apple.com/home-app/). (Makes GREE Air Conditioners HomeKit compatible.)
 
-The plugin finds and adds all GREE Air Conditioner devices to the Home App automatically if they are located on the same subnet as Homebridge. In most cases only a minimal configuration is required. If default configuration is not appropriate, then the parameters can be customized. To set some parameters to a custom value assigned to all devices, a special device has to be added to the configuration with MAC address set to 'default'. To customize a specific device you have to specify it's MAC address. Device specific parameters override the default parameters. Each Air Conditioner device appears in the Home App as a Heater Cooler device (and a Fan device if fan control is enabled). It is also possible to add a separate Temperature Sensor accessory to Home App (if temperature sensor is supported by the physical device). This allows to define automations (e.g. turn on) based on current temperature in the room. _Be careful, if the device does not support internal temperature sensor but is added as a separate accessory, Home App will use the target temperature not the measured one._ Child accessory does not appear in Home App if physical sensor is not available in the AC unit.
+The plugin finds and adds all GREE Air Conditioner devices to the Home App automatically if they are located on the same subnet as Homebridge. _(This feature can be disabled by configuration parameter.)_ In most cases only a minimal configuration is required. If default configuration is not appropriate, then the parameters can be customized. To set some parameters to a custom value assigned to all devices, a special device has to be added to the configuration with MAC address set to 'default'. To customize a specific device you have to specify it's MAC address. Device specific parameters override the default parameters. Each Air Conditioner device appears in the Home App as a Heater Cooler device (and a Fan device if fan control is enabled). It is also possible to add a separate Temperature Sensor accessory to Home App (if temperature sensor is supported by the physical device). This allows to define automations (e.g. turn on) based on current temperature in the room. _Be careful, if the device does not support internal temperature sensor but is added as a separate accessory, Home App will use the target temperature not the measured one._ Child accessory does not appear in Home App if physical sensor is not available in the AC unit.
 
 Quiet / Auto / Powerful mode is supported by the fan speed control. In Heater Cooler accessory zero fan speed means off. Minimum value turns on Quiet mode. Next value is Auto mode. Maximum value is Powerful mode. All other values between them are exact fan speeds (Low, MediumLow**, Medium, MediumHigh**, High) Quiet and Powerful modes are unsupported in Auto mode. If these speed modes are selected in Home App then the device will fix the incorrect settings and the Home App's speed control will be automatically adjusted to the nearest supported value.
 
@@ -29,14 +29,16 @@ Temperature display units of the physical device can be controlled using the Hom
 
 Vertical swing mode can be turned on/off, but special swing settings can't be controlled using the Home App. If device default vertical swing position is not acceptable when oscillation is disabled, it can be set to a pre selected position by configuration settings. (There are multiple options for configuring the plugin to update the vertical swing position.)
 
+Silent mode (no beep on commands) is supported on some devices. It is firmware version dependent.
+
 This plugin is designed to be as simple and clear as possible and supports primarily the functions of the Home App's Heater Cooler accessory.
 
 ## Requirements
 
-* Node.js (>= 18.15.0 || >= 20.7.0 || >= 22.0.0) with NPM
+* Node.js (>= 20.19.0 || >= 22.13.0 || >= 24.0.0) with NPM
 * Homebridge (>= 1.8.0 || >= 2.0.0-beta.0)
 
-The plugin finds all supported units automatically if they are located on the same subnet. AC units on different subnets are also supported if the unit's IP address is set in the configuration. (MAC address have to be set correctly also.)
+The plugin finds all supported units automatically if they are located on the same subnet. If Homebridge is configured to use only selected network interfaces then auto detection is also limited to these selected interfaces. AC units on different subnets are also supported if the unit's IP address is set in the configuration. (MAC address have to be set correctly also.) Auto detection can be disabled by configuration parameter.
 
 IPv4 address is required. GREE Air Conditioners do not support IPv6 nor other network protocols.
 
@@ -58,6 +60,8 @@ It is not recommended to use Home App and the Official GREE+ or Ewpe Smart mobil
 
 By default this plugin tries to auto detect the network protocol encryption version. If not the right version is selected there can get errors and the AC device will not correctly work. It is possible to force a network protocol encryption version in configuration file. If auto detection does not work then it is recommended to try all possible values to check if the device is compatible or not.
 
+**Bridged AC units are NOT SUPPORTED!** If you have a bridge (e.g. GCloud) and some non WiFi capable AC units behind the bridge then they won't work. This topology is not supported.
+
 ## Known limitations
 
 This plugin was designed to support the Home App's Heater Cooler functionality using GREE Air Conditioners. Some special features of GREE AC's are not supported natively by Apple and also dismiss support in this plugin.
@@ -70,6 +74,8 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * GREE AC units are not able to display decimals of temperature values (if set to half a degree, e.g. 21.5 °C, then unit display may not be in sync with temperature set in Home App). To avoid this inconsistency it is recommended to set the **temperatureStepSize** configuration parameter to 1, when the AC unit is used in Celsius display mode, and to 0.5 in Fahrenheit display mode. The most convenient version is to use the Home App device (e.g. iPhone) in the same temperature display mode as the AC unit and to set the temperatureStepSize parameter to the appropriate value also. Set Homebridge UI to the same temperature units.
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
+* Silent mode (no beep on commands) is not supported on all AC units. There are some firmware versions (especially older ones) which do not support muting of commands. Some others have a bug and muting is in effect only on every second command. In these cases a firmware upgrade may help if available.
+* GCloud and AC units without WiFi connection are not supported.
 
 ## Installation instructions
 
@@ -234,6 +240,7 @@ It is possible to set some or all parameters to a customized value which is assi
                     "defaultVerticalSwing": 0,
                     "fanControlEnabled": false,
                     "defaultFanVerticalSwing": 0,
+                    "silentTimeRange": "",
                     "disabled": false
                 }
             ]
@@ -264,6 +271,7 @@ You can always override any default parameter by adding a device identified by M
             "platform": "GREEAirConditioner",
             "port": 7002,
             "scanInterval": 60,
+            "disableAutoDetection": false,
             "devices": [
                 {
                     "mac": "502cc6000000",
@@ -284,6 +292,7 @@ You can always override any default parameter by adding a device identified by M
                     "defaultVerticalSwing": 0,
                     "fanControlEnabled": false,
                     "defaultFanVerticalSwing": 0,
+                    "silentTimeRange": "",
                     "disabled": false
                 }
             ]
@@ -296,6 +305,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
 * **platform** - **GREEAirConditioner** (fixed name, it identifies the plugin)
 * **port** - free UDP port (optional) (plugin will use this port for network communication; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
 * **scanInterval** - time period in seconds between device query retries (defaults to 60 sec if missing)
+* **disableAutoDetection** - if set to 'true', only the AC units listed in the devices section will be enabled
 * **devices** - devices should be listed in this block (specify as many devices as you want to customize or disable)
   * **mac** - MAC address (Serial Number) of the device (required to identify the device, also if only one device exists) Use the 'default' keyword instead of the MAC address to define default configuration for multiple devices. **Must be unique across all devices!**
   * **name*** - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis. (The name is changeable in Home App and any changes made in Home App are kept until the device is disabled which removes it from Home App.)
@@ -315,6 +325,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * **defaultVerticalSwing** - specify the vertical swing position to be used when the plugin modifies is; if overriding is selected, then this value is valid for both heating/cooling and fan modes; if always set is selected, then this value controls only the heating/cooling modes not fan mode; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
   * **fanControlEnabled** - by default fan mode is not supported by the plugin because Apple's Heater Cooler accessory does not support fan mode; setting this parameter to true adds an additional Fan accessory to the Home App and turns on fan mode support in the plugin
   * **defaultFanVerticalSwing** - specify the vertical swing position to be set in fan mode when always set is selected; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
+  * **silentTimeRange** - specify the time range when device shouldn't beep on commands received (format: HH:MM-HH:MM, e.g.: 21:00-07:30) _(not all AC units support this feature)_
   * **disabled** - set to true if you do not want to control this device in the Home App _(can be used also to temporarily remove the device from Home App but not if the device is not responding on the network any more)_
 
 (*) these parameters are initalized only once on device enable; device must be disabled an re-enabled to apply a new value; name is customizable in Home App independently from Homebridge settings
@@ -329,7 +340,7 @@ Recommended customized configuration:
 
 Open selected device and in the upper right corner select menu symbol:
 
-![AC device](./greedevice.jpg)![MAC Address](./greemac.jpg)
+![AC device](./greedevice.jpg)![AC device info](./greedevinfo.jpg)![MAC Address](./greemac.jpg)
 
 ### MAC address alternative detection method
 
@@ -342,7 +353,7 @@ If you are not familiar with the GREE+ mobile app there is an alternative method
 
 E.g.:
 
-> [2025. 01. 05. 22:48:52] [Gree Air Conditioner] [c6000000 -- 192.168.1.2] Device is bound -> 502cc6000000
+> [2025. 01. 05. 22:48:52] [Gree Air Conditioner] [c6000000 -- 192.168.1.2] Device is bound -> 502cc6000000 ( 0 )
 
 The MAC address is visible at the end of the "Device is bound" entry. 502cc6000000 in the above example.
 
@@ -368,7 +379,7 @@ _Keep in mind that disabling the device breaks all associated automations in Hom
 
 ### IP address
 
-IP addresses of the AC units are determined automatically by the plugin. However this auto detection works only if the AC unit is on the same subnet as homebridge. There is an optional IP address parameter which can be used to specifiy the unit's IP address if it is on a different subnet. _(Routing should be correctly set up to communicate with units on different subnets.)_
+IP addresses of the AC units are determined automatically by the plugin. However this auto detection works only if the AC unit is on the same subnet as homebridge. If Homebridge is configured to use only selected network interfaces then this limit controls auto detection also. There is an optional IP address parameter which can be used to specifiy the unit's IP address if it is on a different subnet. _(Routing should be correctly set up to communicate with units on different subnets.)_
 
 ### Port
 

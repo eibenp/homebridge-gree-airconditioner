@@ -1,7 +1,7 @@
-import { Service, CharacteristicValue } from 'homebridge';
+import type { CharacteristicValue, Service } from 'homebridge';
 
-import { GreeACPlatform, MyPlatformAccessory } from './platform';
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import type { GreeACPlatform, MyPlatformAccessory } from './platform.js';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
 /**
  * Platform Accessory
@@ -13,8 +13,8 @@ export class GreeAirConditionerTS {
   private currentTemperature = 25;
 
   constructor(
-    private readonly platform: GreeACPlatform,
-    private readonly accessory: MyPlatformAccessory,
+        private readonly platform: GreeACPlatform,
+        private readonly accessory: MyPlatformAccessory,
   ) {
     // register accessory in homebridge by api if not registered before
     if (!this.accessory.registered) {
@@ -55,20 +55,19 @@ export class GreeAirConditionerTS {
 
   /**
    * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory
+   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
    *
-   * GET requests should return as fast as possbile. A long delay here will result in
+   * GET requests should return as fast as possible. A long delay here will result in
    * HomeKit being unresponsive and a bad user experience in general.
    *
    * If your device takes time to respond you should update the status of your device
    * asynchronously instead using the `updateCharacteristic` method instead.
+   * In this case, you may decide not to implement `onGet` handlers, which may speed up
+   * the responsiveness of your device in the Home app.
 
    * @example
    * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-
-   * if you need to return an error to show the device as "Not Responding" in the Home app:
-   * throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-  */
+   */
   async getCurrentTemperature(): Promise<CharacteristicValue> {
     this.platform.log.debug(`[${this.getDeviceLabel()}] Get CurrentTemperature ->`, this.currentTemperature);
     return this.currentTemperature;
