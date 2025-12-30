@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.3.0-beta.1] - 2025-12-30
+
+### New features
+- GCloud support
+
 ## [2.2.2] - 2025-12-10
 
 **<ins>Reminders:</ins>**

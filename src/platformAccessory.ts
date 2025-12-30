@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import type { CharacteristicValue, Service } from 'homebridge';
 
 import type { GreeACPlatform, MyPlatformAccessory } from './platform.js';
-import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, MODIFY_VERTICAL_SWING_POSITION, TS_TYPE, BINDING_TIMEOUT,
+import { PLATFORM_NAME, PLUGIN_NAME, DeviceConfig, TEMPERATURE_TABLE, MODIFY_VERTICAL_SWING_POSITION, TS_TYPE,
   TEMPERATURE_LIMITS, DEFAULT_DEVICE_CONFIG } from './settings.js';
 import { GreeAirConditionerTS } from './tsAccessory.js';
 import crypto from './crypto.js';
@@ -18,8 +18,7 @@ export class GreeAirConditioner {
   private HeaterCooler?: Service;
   private TemperatureSensor?: Service;
   private Fan?: Service;
-  private socket: dgram.Socket;
-  private key?: string;
+  public key?: string;
   private cols?: Array<string>;
   private status: { [key: string]: unknown };
   private tsAccessory: GreeAirConditionerTS | null = null;
@@ -29,13 +28,15 @@ export class GreeAirConditioner {
 
   constructor(
     private readonly platform: GreeACPlatform,
-    private readonly accessory: MyPlatformAccessory,
-    private readonly deviceConfig: DeviceConfig,
+    public readonly accessory: MyPlatformAccessory,
+    public readonly deviceConfig: DeviceConfig,
     private readonly tsAccessoryMac: string,
+    private readonly socket: dgram.Socket,
   ) {
     // platform, accessory and service initialization is implemented in a separate funcion (initAccessory), because
     // it should be made only on successful binding with network device
     this.platform.log.debug(`[${this.getDeviceLabel()}] deviceConfig -> %j`, deviceConfig);
+    this.status = {};
 
     // calculate silent time ranges
     if (deviceConfig.silentTimeRange) {
@@ -51,29 +52,6 @@ export class GreeAirConditioner {
     } else {
       this.platform.log.debug(`[${this.getDeviceLabel()}] silentTimeRanges: No silentTimeRange is defined`);
     }
-
-    // initialize communication with device
-    this.status = {};
-    this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-    this.socket.on('error', (err) => {
-      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Error:`, err.message);
-    });
-    this.socket.on('message', this.handleMessage);
-    this.socket.on('close', () => {
-      this.platform.log.error(`[${this.getDeviceLabel()}] Network - Connection closed`);
-    });
-    if (this.platform.ports.indexOf(this.deviceConfig.port || 0) >= 0) {
-      this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: Configured port (%i) is already used - replacing with auto assigned port`,
-        this.deviceConfig.port);
-      this.deviceConfig.port = undefined;
-    }
-    this.socket.bind(this.deviceConfig.port, undefined, () => {
-      this.platform.log.info(`[${this.getDeviceLabel()}] Device handler is listening on UDP port %d`, this.socket.address().port);
-      this.platform.ports.push(this.socket.address().port);
-      this.socket.setBroadcast(false);
-      this.sendBindRequest();
-      setTimeout(this.checkBindingStatus.bind(this, 1), BINDING_TIMEOUT);
-    });
   }
 
   initCharacteristics() {
@@ -301,31 +279,6 @@ export class GreeAirConditioner {
     // register handlers for the Name Characteristic
     this.HeaterCooler.getCharacteristic(this.platform.Characteristic.Name)
       .onGet(this.getName.bind(this));
-  }
-
-  // this function is a callback to check the status of binding after timeout period has ellapsed
-  checkBindingStatus(bindNo: number) {
-    if (!this.accessory.bound) {
-      this.platform.log.debug(`[${this.getDeviceLabel()}] Device binding timeout`);
-      switch (bindNo) {
-      case 1: {
-        // 1. timeout -> repeat bind request with alternate encryption version
-        if (this.accessory.context.device.encryptionVersion === 1) {
-          this.accessory.context.device.encryptionVersion = 2;
-        } else {
-          this.accessory.context.device.encryptionVersion = 1;
-        }
-        this.sendBindRequest();
-        setTimeout(this.checkBindingStatus.bind(this, bindNo + 1), BINDING_TIMEOUT);
-        break;
-      }
-      default: {
-        this.platform.log.error(`[${this.getDeviceLabel()}] Error: Device is not bound`,
-          '(unknown device type or device is malfunctioning [turning the power supply off and on may help])',
-          '- Restart homebridge when issue has fixed!');
-      }
-      }
-    }
   }
 
   /**
@@ -1692,20 +1645,7 @@ export class GreeAirConditioner {
       this.platform.log.debug(`[${this.getDeviceLabel()}] handleMessage - Package -> %j`, pack);
       switch ((pack.t as string).toLowerCase()) {
       case 'bindok': // package type is binding confirmation
-        if(!this.accessory.bound) {
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Device binding in progress`);
-          this.key = pack.key;
-          this.initAccessory();
-          this.accessory.bound = true;
-          this.platform.log.success(`[${this.getDeviceLabel()}] Device is bound -> ${pack.mac} (`,
-            (this.accessory.context.device.uid ?? 0).toString(), ')');
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Device key -> ${this.key}`);
-          this.requestDeviceStatus();
-          setInterval(this.requestDeviceStatus.bind(this),
-            this.deviceConfig.statusUpdateInterval * 1000); // statusUpdateInterval in seconds
-        } else {
-          this.platform.log.debug(`[${this.getDeviceLabel()}] Binding response received from already bound device`);
-        }
+        this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: Binding response received from already bound device`);
         break;
       case 'dat': // package type is device status
         if (this.accessory.bound){
@@ -1807,15 +1747,15 @@ export class GreeAirConditioner {
       return;
     }
     const payload = (tag === '') ? {
-      tcid: this.accessory.context.device.mac.substring(this.accessory.context.device.mac.indexOf('@')+1),
-      uid: this.accessory.context.device.uid ?? 0,
+      tcid: this.accessory.context.device.mac,
+      uid: 0,
       t: 'pack',
       pack,
       i: this.key === undefined ? 1 : 0,
       cid: 'app',
     } : {
-      tcid: this.accessory.context.device.mac.substring(this.accessory.context.device.mac.indexOf('@')+1),
-      uid: this.accessory.context.device.uid ?? 0,
+      tcid: this.accessory.context.device.mac,
+      uid: 0,
       t: 'pack',
       pack,
       i: this.key === undefined ? 1 : 0,
@@ -1833,17 +1773,6 @@ export class GreeAirConditioner {
     } catch (err) {
       this.platform.log.error(`[${this.getDeviceLabel()}] sendMessage - Error:`, (err as Error).message);
     }
-  }
-
-  sendBindRequest() {
-    const message = {
-      mac: this.accessory.context.device.mac.substring(this.accessory.context.device.mac.indexOf('@')+1),
-      t: 'bind',
-      uid: this.accessory.context.device.mac.indexOf('@') < 0 ? 0 :
-        this.accessory.context.device.mac.substring(0, this.accessory.context.device.mac.indexOf('@')),
-    };
-    this.platform.log.debug(`[${this.getDeviceLabel()}] Bind to device -> ${this.accessory.context.device.mac}`);
-    this.sendMessage(message);
   }
 
   sendCommand(cmd: Record<string, unknown>) {
