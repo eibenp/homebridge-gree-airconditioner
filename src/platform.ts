@@ -223,7 +223,9 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           if (this.config.disableAutoDetection !== true || this.config.devices?.find((item: { mac?: string, disabled?: boolean }) =>
             item.mac?.endsWith(`@${pack.mac}`) && item.disabled !== true) !== undefined && this.skippedDevices[pack.mac] !== true) {
             if (pack.subCnt && pack.subCnt > 0) {
-              if (!this.bridges[rinfo.address].bound) {
+              if (this.bridges[rinfo.address]?.bound) {
+                this.log.debug(`[${rinfo.address}] Device already bound`);
+              } else {
                 this.log.info(`[${rinfo.address}] Device is a bridge with %i subdevices`, pack.subCnt);
                 const message = {
                   mac: pack.mac,
@@ -232,8 +234,6 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
                 };
                 this.log.debug(`[${rinfo.address}] Bind to device -> ${pack.mac}`);
                 this.sendEncryptedMessage(message, pack.mac, rinfo.address, rinfo.port, encryptionVersion);
-              } else {
-                this.log.debug(`[${rinfo.address}] Device already bound`);
               }
             } else {
               this.log.warn(`[${rinfo.address}] Warning: Device is a bridge but no subdevices found`);

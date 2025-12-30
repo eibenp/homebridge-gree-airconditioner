@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.3.0-beta.1] - 2025-12-30
+## [2.3.0-beta.2] - 2025-12-31
 
 ### New features
 - GCloud support
