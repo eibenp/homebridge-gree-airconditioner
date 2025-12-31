@@ -177,18 +177,19 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           Buffer.from(msg).toString('base64'));
         return;
       }
-      if (/* message.i !== 1 || */ message.t !== 'pack') {
+      if (!message.pack) {
         this.log.debug('handleMessage - unknown response from %s: %j', rinfo.address, message);
+        this.log.warn('Warning: handleMessage - unknown response from %s', rinfo.address);
         return;
       }
       let pack, encryptionVersion:number;
       if (message.tag === undefined) {
         this.log.debug('handleMessage -> Encryption version: 1');
-        pack = crypto.decrypt_v1(message.pack);
+        pack = crypto.decrypt_v1(message.pack, message.i === 1 ? undefined : this.bridges[rinfo.address]?.key);
         encryptionVersion = 1;
       } else {
         this.log.debug('handleMessage -> Encryption version: 2');
-        pack = crypto.decrypt_v2(message.pack, message.tag);
+        pack = crypto.decrypt_v2(message.pack, message.tag, message.i === 1 ? undefined : this.bridges[rinfo.address]?.key);
         encryptionVersion = 2;
       }
       this.log.debug('handleMessage - Package -> %j', pack);
@@ -591,6 +592,9 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           setTimeout(this.checkBindingStatus.bind(this, 1, ac), BINDING_TIMEOUT);
         } else {
           // bridged device -> bridge already bound
+          this.log.debug(`[${ac.getDeviceLabel()}] Device binding in progress`);
+          ac.key = this.bridges[ac.accessory.context.device.address]?.key;
+          this.log.debug(`[${ac.getDeviceLabel()}] Device key ->`, ac.key);
           acsocket.on('message', ac.handleMessage);
           ac.accessory.bound = true;
           ac.initAccessory();
