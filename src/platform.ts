@@ -177,7 +177,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           Buffer.from(msg).toString('base64'));
         return;
       }
-      if (message.i !== 1 || message.t !== 'pack') {
+      if (/* message.i !== 1 || */ message.t !== 'pack') {
         this.log.debug('handleMessage - unknown response from %s: %j', rinfo.address, message);
         return;
       }
