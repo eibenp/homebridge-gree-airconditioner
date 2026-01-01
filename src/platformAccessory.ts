@@ -1747,14 +1747,16 @@ export class GreeAirConditioner {
       return;
     }
     const payload = (tag === '') ? {
-      tcid: this.accessory.context.device.mac,
+      tcid: (this.accessory.context.device.mac.includes('@') ? this.accessory.context.device.mac.split('@')[1] :
+        this.accessory.context.device.mac),
       uid: 0,
       t: 'pack',
       pack,
       i: this.key === undefined ? 1 : 0,
       cid: 'app',
     } : {
-      tcid: this.accessory.context.device.mac,
+      tcid: (this.accessory.context.device.mac.includes('@') ? this.accessory.context.device.mac.split('@')[1] :
+        this.accessory.context.device.mac),
       uid: 0,
       t: 'pack',
       pack,
@@ -1783,11 +1785,15 @@ export class GreeAirConditioner {
     this.platform.log.debug(`[${this.getDeviceLabel()}] Send commands -> %j`, cmd);
     const keys = Object.keys(cmd);
     const values = keys.map((k) => cmd[k]);
-    const message = {
+    const message: { t: string, opt: string[], p: unknown[], sub?: string } = {
       t: 'cmd',
       opt: keys,
       p: values,
     };
+    if (this.accessory.context.device.mac.includes('@')) {
+      // this is a subdevice behind a bridge
+      message.sub = this.accessory.context.device.mac.split('@')[0];
+    }
     if (keys.includes(commands.power.code)) {
       this.powerPending = (values[keys.indexOf(commands.power.code)] as number);
     }
@@ -1799,7 +1805,7 @@ export class GreeAirConditioner {
 
   requestDeviceStatus() {
     const message = {
-      mac: this.accessory.context.device.mac,
+      mac: this.accessory.context.device.mac.split('@')[0],
       t: 'status',
       cols: this.getCols(),
     };
