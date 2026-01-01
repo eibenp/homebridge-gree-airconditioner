@@ -137,4 +137,4 @@ export const TEMPERATURE_TABLE: { [key: string]: number } = {
 
 export const DEF_SCAN_INTERVAL = 60; // seconds
 
-export const BINDING_TIMEOUT = 60000; // milliseconds
+export const BINDING_TIMEOUT = 29000; // milliseconds

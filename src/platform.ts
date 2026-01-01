@@ -34,7 +34,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   private processedDevices: Record<string, boolean>;
   private skippedDevices: Record<string, boolean>;
   private warningShown: Record<string, boolean>;
-  private bridges: Record<string, {mac: string, key: string, bound: boolean}>;
+  private bridges: Record<string, { mac: string, key?: string, bound: boolean, encryptionVersion: number }>;
 
   private socket: dgram.Socket;
   private pluginAddresses: Record<string, string> = {};
@@ -234,7 +234,9 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
                   uid: 0,
                 };
                 this.log.debug(`[${rinfo.address}] Bind to device -> ${pack.mac}`);
+                this.bridges[rinfo.address] = { mac: pack.mac, bound: false, encryptionVersion: encryptionVersion };
                 this.sendEncryptedMessage(message, pack.mac, rinfo.address, rinfo.port, encryptionVersion);
+                setTimeout(this.checkBindingStatus.bind(this, 1, rinfo.address, rinfo.port, encryptionVersion, pack.mac), BINDING_TIMEOUT);
               }
             } else {
               this.log.warn(`[${rinfo.address}] Warning: Device is a bridge but no subdevices found`);
@@ -248,14 +250,15 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         break;
       case 'bindok': // package type is binding confirmation
         this.log.debug(`[${rinfo.address}] Device binding in progress`);
-        this.bridges[rinfo.address] = { mac: pack.mac, key: pack.key, bound: false };
+        this.bridges[rinfo.address].key = pack.key;
         {
           const message = {
             mac: pack.mac,
             t: 'subDev',
             i: 0,
           };
-          this.sendEncryptedMessage(message, pack.mac, rinfo.address, rinfo.port, encryptionVersion, this.bridges[rinfo.address]?.key);
+          this.sendEncryptedMessage(message, pack.mac, rinfo.address, rinfo.port,
+            this.bridges[rinfo.address]?.encryptionVersion || encryptionVersion, this.bridges[rinfo.address]?.key);
         }
         break;
       case 'sublist': // package type is subdevice list
@@ -301,6 +304,38 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       this.log.error('handleMessage (%s) - Error: %s', rinfo.address.toString(), msg);
     }
   };
+
+  checkBindingStatus(bindNo: number, address: string, port: number, encryptionVersion: number, mac: string) {
+    if (!this.bridges[address]?.bound) {
+      this.log.debug(`[${address}] Device (bridge) binding timeout`);
+      switch (bindNo) {
+      case 1:
+        // 1. timeout -> repeat bind request with alternate encryption version
+        {
+          let newEncryptionVersion: number;
+          if (encryptionVersion === 1) {
+            newEncryptionVersion = 2;
+          } else {
+            newEncryptionVersion = 1;
+          }
+          const message = {
+            mac: mac,
+            t: 'bind',
+            uid: 0,
+          };
+          this.bridges[address].encryptionVersion = newEncryptionVersion;
+          this.sendEncryptedMessage(message, mac, address, port, newEncryptionVersion);
+          setTimeout(this.checkBindingStatus.bind(this, bindNo + 1, address, port, newEncryptionVersion, mac), BINDING_TIMEOUT);
+        }
+        break;
+      default:
+        this.log.error(`[${address}] Error: Device (bridge) is not bound`,
+          '(unknown device type or device is malfunctioning [turning the power supply off and on may help])',
+          '- Restart homebridge when issue has fixed!');
+        break;
+      }
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerDevice = (deviceInfo: any) => {
@@ -505,7 +540,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
 
     if (accessory && this.processedDevices[accessory.UUID]) {
-      // already initalized
+      // already initialized
       this.log.debug('registerDevice - already processed:', accessory.displayName, accessory.context.device.mac, accessory.UUID);
       return;
     }
@@ -588,8 +623,8 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         acsocket.setBroadcast(false);
         if (!ac.accessory.context.device.mac.includes('@')) {
           // normal device -> bind now
-          this.sendBindRequest(ac);
-          setTimeout(this.checkBindingStatus.bind(this, 1, ac), BINDING_TIMEOUT);
+          this.sendACBindRequest(ac);
+          setTimeout(this.checkACBindingStatus.bind(this, 1, ac), BINDING_TIMEOUT);
         } else {
           // bridged device -> bridge already bound
           this.log.debug(`[${ac.getDeviceLabel()}] Device binding in progress`);
@@ -737,7 +772,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   }
 
   // accessory specific functions
-  sendBindRequest(ac: GreeAirConditioner) {
+  sendACBindRequest(ac: GreeAirConditioner) {
     const message = {
       mac: ac.accessory.context.device.mac,
       t: 'bind',
@@ -747,7 +782,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     ac.sendMessage(message);
   }
 
-  checkBindingStatus(bindNo: number, ac: GreeAirConditioner) {
+  checkACBindingStatus(bindNo: number, ac: GreeAirConditioner) {
     if (!ac.accessory.bound) {
       this.log.debug(`[${ac.getDeviceLabel()}] Device binding timeout`);
       switch (bindNo){
@@ -758,8 +793,8 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         } else {
           ac.accessory.context.device.encryptionVersion = 1;
         }
-        this.sendBindRequest(ac);
-        setTimeout(this.checkBindingStatus.bind(this, bindNo + 1, ac), BINDING_TIMEOUT);
+        this.sendACBindRequest(ac);
+        setTimeout(this.checkACBindingStatus.bind(this, bindNo + 1, ac), BINDING_TIMEOUT);
         break;
       default:
         this.log.error(`[${ac.getDeviceLabel()}] Error: Device is not bound`,

@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.3.0-beta.5] - 2026-01-01
+## [2.3.0-beta.6] - 2026-01-01
 
 ### New features
 - GCloud support
