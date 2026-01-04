@@ -2,12 +2,12 @@
   "name": "homebridge-gree-ac",
   "displayName": "GREE Air Conditioner",
   "type": "module",
-  "version": "2.3.0-beta.6",
+  "version": "2.3.0-beta.7",
   "private": false,
   "description": "Control GREE Air Conditioners from Homebridge",
   "author": "Peter Eiben",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/eibenp/homebridge-gree-airconditioner#readme",
+  "homepage": "https://github.com/eibenp/homebridge-gree-airconditioner/tree/beta#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/eibenp/homebridge-gree-airconditioner.git"
@@ -23,6 +23,9 @@
     "gree air conditioner"
   ],
   "main": "dist/index.js",
+  "directories": {
+    "schemas": "schemas/"
+  },
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || ^24.0.0",
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"

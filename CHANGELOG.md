@@ -1,9 +1,26 @@
 # Changelog
 
-## [2.3.0-beta.6] - 2026-01-01
+## [2.3.0-beta.7] - 2026-01-04
+
+**<ins>Reminders:</ins>**
+- **All devices on the local subnet are automatically added to Homebridge since v2.1.7** Please use the "disabled" parameter to disable individual devices, or disable automatic device detection globally starting from version v2.2.2.
+- **If the fan control is disabled, the Home App interprets the device in fan mode as if it is turned off.**
+- **Similarly, the dry mode is considered to be off by the Home App, because the dry mode is not supported at all.**
+
+When upgrading from v2.0.0 - v2.1.1 to v2.1.2 or later, configuration settings should be updated.
+The following configuration parameters are applied only once, when the device is enabled:
+* name
+* model
+* speedSteps
+* minimumTargetTemperature
+* maximumTargetTemperature
+* temperatureStepSize
+
+Changes of the above parameters are ignored until the device is disabled and re-enabled. But keep in mind that disabling the device breaks all associated automations in Home App also.
 
 ### New features
 - GCloud support
+- Multilingual configuration UI (requires [Homebridge UI](https://github.com/homebridge/homebridge-config-ui-x) v5.13.0 or later)
 
 ## [2.2.2] - 2025-12-10
 

@@ -496,6 +496,10 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       }
     }
     // force encryption version if set in config
+    if (deviceInfo.mac.includes('@')) {
+      // bridged subdevice - forcing encryption version is not supported, it must be always AUTO
+      deviceConfig.encryptionVersion = ENCRYPTION_VERSION.auto;
+    }
     if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {
       deviceInfo.encryptionVersion = deviceConfig.encryptionVersion;
       this.log.debug(`Accessory ${deviceInfo.mac} encryption version forced:`, deviceInfo.encryptionVersion);
@@ -737,7 +741,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     // Add IPs from configuration but only if at least one host address found (add only for valid mac addresses)
     if (Object.keys(pluginAddresses).length > 0) {
       const devcfgs:[] = this.config.devices?.filter((item: { ip?: string, disabled?: boolean, mac?: string }) =>
-        item.ip && !item.disabled && /^[a-f0-9]{12}$/.test(item.mac || '')) || [];
+        item.ip && !item.disabled && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(item.mac || '')) || [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       devcfgs.forEach((value: any) => {
         const ip: string = value.ip;
@@ -757,7 +761,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           if (skipAddress === undefined) {
             pluginAddresses[ip] = '255.255.255.255';
           } else {
-            this.log.debug('AC Unit (%s) is already on broadcast list - skipping', skipAddress);
+            this.log.debug('Device (%s) is already on broadcast list - skipping', skipAddress);
           }
         } else {
           this.log.warn('Warning: Invalid IP address found in configuration: %s - skipping', ip);

@@ -42,7 +42,7 @@ The plugin finds all supported units automatically if they are located on the sa
 
 IPv4 address is required. GREE Air Conditioners do not support IPv6 nor other network protocols.
 
-All devices must have an IP address which is reachable on the network for the plugin. Devices behind a bridge (e.g. GCloud) are not supported.
+All devices must have an IP address which is reachable on the network for the plugin. Devices behind a bridge (GCloud) are supported if the bridge is reachable on the network for the plugin.
 
 This is not plugin dependency but its good to know that Homebridge server host address must be static. If the host address changes then Homebridge looses connection with Home App and only Homebridge restart restores the connection.
 
@@ -51,6 +51,7 @@ This is not plugin dependency but its good to know that Homebridge server host a
 * GREE Air Conditioners with WiFi support (hardware version v1.x.x, v2.x.x and v3.x.x)
 * May work with other GREE compatible AC units (e.g. Sinclair)
     * Successfully tested with Sinclair SIH-13BITW
+* GREE Air Conditioners connected to GCloud (bridge and subdevices topology)
  
 > If you get _"error:1C80006B:Provider routines::wrong final block length"_ error message then your device is not supported or incorrect encryption version is selected.
 >
@@ -59,8 +60,6 @@ This is not plugin dependency but its good to know that Homebridge server host a
 It is not recommended to use Home App and the Official GREE+ or Ewpe Smart mobile apps side by side. In some cases the mobile apps can set the Air Conditioner device into a restricted state where Homebridge can't bind the plugin to the device because the device does not respond on device query requests which are required to initalize the plugin. It is highly recommended to use the mobile app only for the initial setup of the air conditioner, and later it is fine to use only the Home App and the physical remote control for everyday tasks. (Usually when the AC device is not responding to the Homebridge plugin but is communicating fine with the mobile app, then power cycling the AC device resolves the problem.)
 
 By default this plugin tries to auto detect the network protocol encryption version. If not the right version is selected there can get errors and the AC device will not correctly work. It is possible to force a network protocol encryption version in configuration file. If auto detection does not work then it is recommended to try all possible values to check if the device is compatible or not.
-
-**Bridged AC units are NOT SUPPORTED!** If you have a bridge (e.g. GCloud) and some non WiFi capable AC units behind the bridge then they won't work. This topology is not supported.
 
 ## Known limitations
 
@@ -75,7 +74,6 @@ This plugin was designed to support the Home App's Heater Cooler functionality u
 * There is no way to get current heating-cooling state from the AC unit in auto mode, so displayed state in the Home App is based on temperature measurement, but internal sensor is not precise enough to always display the correct state.
 * Devices without a built-in temperature sensor display the target temperature as current temperature not the measured one. (Some AC firmware versions do not report the measured temperature but the unit has a built-in sensor. They are handled by the plugin as devices without a sensor.)
 * Silent mode (no beep on commands) is not supported on all AC units. There are some firmware versions (especially older ones) which do not support muting of commands. Some others have a bug and muting is in effect only on every second command. In these cases a firmware upgrade may help if available.
-* GCloud and AC units without WiFi connection are not supported.
 
 ## Installation instructions
 
@@ -90,6 +88,10 @@ If successfully installed and configured, your devices will appear on the Homebr
 ## Upgrade
 
 Always check out your current settings in Homebridge and also in Home App (including scenes and automation rules) before you start an upgrade!
+
+### v2.2.x to v2.3.x
+
+The upgrade is automatic by installing the latest version.
 
 ### v2.1.7 to v2.2.x
 
@@ -191,6 +193,16 @@ There is no clean way to update the plugin to release v2.0.0 or later if you are
 ## Example configuration
 
 _Only the relevant part of the configuration file is displayed:_
+
+The plugin supports Homebridge configuration UI in multiple languages. International UI requires [Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x) version v5.13.0 or later. Unsupported UI versions and languages use the English UI.
+Supported languages:
+
+- English (EN)
+- Deutsch (DE - German)
+- Español (ES - Spanish)
+- Français (FR - French)
+- Magyar (HU - Hungarian)
+- Português (PT - Portuguese / Portugal)
 
 ### Minimal configuration
 
@@ -303,7 +315,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
 
 * **name** - Unique name of the platform plugin
 * **platform** - **GREEAirConditioner** (fixed name, it identifies the plugin)
-* **port** - free UDP port (optional) (plugin will use this port for network communication; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
+* **port** - free UDP port (optional) (plugin will use this port in bridge level network communication (e.g. device detection); valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
 * **scanInterval** - time period in seconds between device query retries (defaults to 60 sec if missing)
 * **disableAutoDetection** - if set to 'true', only the AC units listed in the devices section will be enabled
 * **devices** - devices should be listed in this block (specify as many devices as you want to customize or disable)
@@ -312,7 +324,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * **ip** - device IP address (optional) Address is auto detected if this parameter is missing. **Specify only if device is located on a different subnet than homebridge!**
   * **port** - free UDP port (optional) (plugin will listen on this port for data received from the device; valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
   * **statusUpdateInterval** - device status will be refreshed based on this interval (in seconds, default is 10 seconds)
-  * **encryptionVersion** - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication
+  * **encryptionVersion** - Auto (0) is fine for most AC units. If auto does not work then you can force v1 (1) or v2 (2) encryption version to use in network communication. **Encryption version is always auto (0) for devices behind GCloud bridge.**
   * **model*** - model name, information only (optional)
   * **speedSteps*** - fan speed steps of the unit (valid values are: 3 and 5)
   * **minimumTargetTemperature*** - minimum target temperature accepted by the device (default is 16 °C, must be specified in °C, valid values: 8-30, values less than 16 work only in heating mode and on selected models only)
@@ -322,10 +334,10 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * **temperatureSensor** - controls additional temperature sensor accessory in Home App (disabled = do not add to Home App / child = add as a child accessory / separate = add as a separate (independent) accessory) _Only independent accessories can be used by automations to control other accessories._
   * **xFanEnabled** - automatically turn on xFan functionality in supported device modes (xFan actual setting is not modified by the Home App if disabled)
   * **modifyVerticalSwingPosition** - by default this plugin sets the vertical swing position to the default position of the AC device when oscillation is turned off and leaves the position untouched when the device is powered on; this parameter allows the plugin to modify the vertical swing position (the actual position is controlled by the "defaultVerticalSwing" and/or the "defaultFanVerticalSwing" parameters); valid values: Never (0) = do not modify vertical swing position, let device use default / Override default after power on (1) = override the default position each time the device is powered on _(Only the default position is changing to the selected one when turning on the device. All other positions are kept by the Home App.)_ / Override default after power on or osciallation off (2) = override the default position each time the device is powered on and when oscillation is turned off by the Home App _(Only the default position is changing to the selected one when turning on the device. All other positions are kept by the Home App. Turning off oscillation sets the selected fixed position.)_ / Always set after power on (3) = set the device to the specified vertical position each time it is powered on (regardless of the actual vertical position) / Always set after power on or osciallation off (4) = set the device to the specified vertical position each time it is powered on and when osciallation is turned off by the Home App (regardless of the actual vertical position) _(Each time powered on means that one of the enabled accessories (Heater Cooler or Fan) will be set to active)_
-  * **defaultVerticalSwing** - specify the vertical swing position to be used when the plugin modifies is; if overriding is selected, then this value is valid for both heating/cooling and fan modes; if always set is selected, then this value controls only the heating/cooling modes not fan mode; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
+  * **defaultVerticalSwing** - specify the vertical swing position to be used when the plugin modifies it; if overriding is selected, then this value is valid for both heating/cooling and fan modes; if always set is selected, then this value controls only the heating/cooling modes not fan mode; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
   * **fanControlEnabled** - by default fan mode is not supported by the plugin because Apple's Heater Cooler accessory does not support fan mode; setting this parameter to true adds an additional Fan accessory to the Home App and turns on fan mode support in the plugin
   * **defaultFanVerticalSwing** - specify the vertical swing position to be set in fan mode when always set is selected; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
-  * **silentTimeRange** - specify the time range when device shouldn't beep on commands received (format: HH:MM-HH:MM, e.g.: 21:00-07:30) _(not all AC units support this feature)_
+  * **silentTimeRange** - specify the time range when device shouldn't beep on commands received (format: HH:MM-HH:MM, e.g.: 22:00-08:30) _(not all AC units support this feature)_
   * **disabled** - set to true if you do not want to control this device in the Home App _(can be used also to temporarily remove the device from Home App but not if the device is not responding on the network any more)_
 
 (*) these parameters are initalized only once on device enable; device must be disabled an re-enabled to apply a new value; name is customizable in Home App independently from Homebridge settings
@@ -342,6 +354,8 @@ Open selected device and in the upper right corner select menu symbol:
 
 ![AC device](./greedevice.jpg)![AC device info](./greedevinfo.jpg)![MAC Address](./greemac.jpg)
 
+This plugin requires the same MAC address as visible in GREE+ mobile app for AC device identification. GCloud subdevices have a special MAC format: ..............@............ The plugin uses this special format also in configuration.
+
 ### MAC address alternative detection method
 
 If you are not familiar with the GREE+ mobile app there is an alternative method to detect the MAC address of your devices:
@@ -353,7 +367,7 @@ If you are not familiar with the GREE+ mobile app there is an alternative method
 
 E.g.:
 
-> [2025. 01. 05. 22:48:52] [Gree Air Conditioner] [c6000000 -- 192.168.1.2] Device is bound -> 502cc6000000 ( 0 )
+> [2025. 01. 05. 22:48:52] [Gree Air Conditioner] [c6000000 -- 192.168.1.2] Device is bound -> 502cc6000000
 
 The MAC address is visible at the end of the "Device is bound" entry. 502cc6000000 in the above example.
 
@@ -381,11 +395,13 @@ _Keep in mind that disabling the device breaks all associated automations in Hom
 
 IP addresses of the AC units are determined automatically by the plugin. However this auto detection works only if the AC unit is on the same subnet as homebridge. If Homebridge is configured to use only selected network interfaces then this limit controls auto detection also. There is an optional IP address parameter which can be used to specifiy the unit's IP address if it is on a different subnet. _(Routing should be correctly set up to communicate with units on different subnets.)_
 
+Bridged devices (AC units behind GCloud) do not have an IP address. Only the GCloud device has an own IP address and all subdevices share this address. When you set manual IP address in this situation you have to use the same address for all devices behind the same GCloud unit. Specifying multiple addresses for the same GCloud unit is an invalid configuration.
+
 ### Port
 
 Network communication uses UDP ports. There are two kind of ports:
 
-- Plugin port. This port is used by the plugin to communicate on the network.
+- Bridge level port. This port is used by the plugin to communicate on the network. This is used e.g. in device detection.
 - Device specific port. The plugin is listening for data received from the device using this port.
 
 All ports are set up automatically by default. In some cases auto detection is not appropriate. (E.g. when firewall rules should be set up) It is possible to overwrite the default ports by optional port parameters (for the plugin and also for each devices). _Note that the ports must be unique and not used by other applications._
@@ -502,7 +518,7 @@ Versions v2.1.4 and later check binding before Home App registration and do not 
 
 ## Refs & Credits
 
-Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https://github.com/kongkx) for GREE network protocol information and code samples. Thank you [mateuszm7](https://github.com/mateuszm7) and [zivanek](https://github.com/zivanek) for helping to implement the version 2 network protocol.
+Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https://github.com/kongkx) for GREE network protocol information and code samples. Thank you [mateuszm7](https://github.com/mateuszm7) and [zivanek](https://github.com/zivanek) for helping to implement the version 2 network protocol. Thank you [MortJC](https://github.com/MortJC) for helping to implement the GCloud support. Also thank you [justjam2013](https://github.com/justjam2013) for config UI internationalization tips.
 
 - [homebridge-gree-air-conditioner](https://github.com/kongkx/homebridge-gree-air-conditioner)
 - [gree-remote](https://github.com/tomikaa87/gree-remote)
@@ -510,3 +526,4 @@ Special thanks to [tomikaa87](https://github.com/tomikaa87) and [kongkx](https:/
 - [Homebridge API](https://developers.homebridge.io/)
 - [Homebridge Platform Plugin Template](https://github.com/homebridge/homebridge-plugin-template)
 - [HomeAssistant-GreeClimateComponent](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent)
+- [Virtual Accessories For Homebridge](https://github.com/justjam2013/homebridge-virtual-accessories)
