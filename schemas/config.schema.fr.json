@@ -148,13 +148,13 @@
                   ]
                 },
                 {
-                  "title": "Toujours définir après la mise sous tension",
+                  "title": "Toujours régler après la mise sous tension",
                   "enum": [
                     3
                   ]
                 },
                 {
-                  "title": "Toujours définir après la mise sous tension ou l’arrêt de l’oscillation",
+                  "title": "Toujours régler après la mise sous tension ou l’arrêt de l’oscillation",
                   "enum": [
                     4
                   ]
@@ -167,7 +167,7 @@
               "default": 0,
               "oneOf": [
                 {
-                  "title": "Réglage par défaut de l’appareil",
+                  "title": "Paramètres par défaut de l’appareil",
                   "enum": [
                     0
                   ]
@@ -210,7 +210,7 @@
               "default": 0,
               "oneOf": [
                 {
-                  "title": "Réglage par défaut de l’appareil",
+                  "title": "Paramètres par défaut de l’appareil",
                   "enum": [
                     0
                   ]
@@ -314,7 +314,7 @@
           "key": "scanInterval",
           "flex": "1 1 50%",
           "title": "Intervalle de recherche :",
-          "description": "Intervalle entre les tentatives de détection en secondes (60 s si vide)"
+          "description": "Intervalle entre les tentatives de détection des appareils en secondes (60 s si vide)"
         },
         {
           "key": "disableAutoDetection",
@@ -347,7 +347,7 @@
               "key": "devices[].name",
               "flex": "1 1 50%",
               "title": "Nom de l’appareil :",
-              "description": "Nom personnalisé de l’appareil. Utilise uniquement des caractères alphanumériques, des espaces et des apostrophes. Commencer et se terminer par une lettre ou un chiffre. Les emojis ne sont pas pris en charge.",
+              "description": "Nom personnalisé de l’appareil. Utilisez uniquement des caractères alphanumériques, des espaces et des apostrophes. Commencer et se terminer par une lettre ou un chiffre. Les emojis ne sont pas pris en charge.",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac));"
               }
@@ -374,7 +374,7 @@
               "key": "devices[].port",
               "flex": "1 1 50%",
               "title": "Port :",
-              "description": "Port UDP spécifique à l’appareil (automatique si vide)",
+              "description": "Port UDP spécifique de l’appareil (automatique si vide)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -382,8 +382,8 @@
             {
               "key": "devices[].statusUpdateInterval",
               "flex": "1 1 50%",
-              "title": "Intervalle de mise à jour de l’état :",
-              "description": "Intervalle en secondes",
+              "title": "Intervalle de mise à jour du statut :",
+              "description": "Intervalle de mise à jour en secondes",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -391,8 +391,8 @@
             {
               "key": "devices[].encryptionVersion",
               "flex": "1 1 50%",
-              "title": "Version du chiffrement du protocole réseau :",
-              "description": "Laisse sur Automatique. Si cela ne fonctionne pas, sélectionne une version spécifique.",
+              "title": "Version de chiffrement du protocole réseau :",
+              "description": "Laisse sur Automatique. Si cela ne fonctionne pas, sélectionne une version appropriée.",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default)$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -408,7 +408,7 @@
             {
               "key": "devices[].speedSteps",
               "flex": "1 1 50%",
-              "title": "Vitesses du ventilateur :",
+              "title": "Niveaux de vitesses du ventilateur :",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -416,8 +416,8 @@
             {
               "key": "devices[].minimumTargetTemperature",
               "flex": "1 1 50%",
-              "title": "Température cible minimale :",
-              "description": "Température cible minimale (°C)",
+              "title": "Température de consigne minimale :",
+              "description": "Température de consigne minimale (°C)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -425,8 +425,8 @@
             {
               "key": "devices[].maximumTargetTemperature",
               "flex": "1 1 50%",
-              "title": "Température cible maximale :",
-              "description": "Température cible maximale (°C)",
+              "title": "Température de consigne maximale :",
+              "description": "Température de consigne maximale (°C)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -453,7 +453,7 @@
               "key": "devices[].xFanEnabled",
               "flex": "1 1 50%",
               "title": "X-FAN activé",
-              "description": "Si activée, la fonction X-FAN s’active automatiquement sur l’appareil lors de l’extinction.",
+              "description": "Si activée, la fonction X-FAN s’active automatiquement sur l’appareil lors de l’arrêt.",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -471,7 +471,7 @@
               "key": "devices[].modifyVerticalSwingPosition",
               "flex": "1 1 50%",
               "title": "Modifier la position verticale :",
-              "description": "Quand modifier la position verticale des ailettes",
+              "description": "Quand modifier la position verticale les pales",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -480,7 +480,7 @@
               "key": "devices[].defaultVerticalSwing",
               "flex": "1 1 50%",
               "title": "Position verticale :",
-              "description": "Position verticale des ailettes pour les modes chauffage/refroidissement",
+              "description": "Position verticale les pales pour les modes chauffage/refroidissement",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].modifyVerticalSwingPosition !== 0);"
               }
@@ -498,7 +498,7 @@
               "key": "devices[].defaultFanVerticalSwing",
               "flex": "1 1 50%",
               "title": "Position verticale du ventilateur :",
-              "description": "Position verticale des ailettes à définir en mode ventilateur",
+              "description": "Position verticale les pales à définir en mode ventilateur",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && [3, 4].includes(model.devices[arrayIndices].modifyVerticalSwingPosition) && model.devices[arrayIndices].fanControlEnabled === true);"
               }
