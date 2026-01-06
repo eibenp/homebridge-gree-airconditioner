@@ -308,7 +308,7 @@
           "key": "port",
           "flex": "1 1 50%",
           "title": "Porta:",
-          "description": "Porta UDP da bridge usada para deteção de dispositivos (automática se vazia)"
+          "description": "Porta UDP da ponte usada para deteção de dispositivos (automática se vazia)"
         },
         {
           "key": "scanInterval",
