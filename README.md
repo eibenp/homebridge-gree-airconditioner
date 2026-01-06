@@ -1,7 +1,8 @@
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
-[![npm](https://badgen.net/npm/v/homebridge-gree-ac/latest?icon=npm&label)](https://www.npmjs.com/package/homebridge-gree-ac)
-[![npm](https://badgen.net/npm/dt/homebridge-gree-ac?label=downloads)](https://www.npmjs.com/package/homebridge-gree-ac)
-[![Donate](https://badgen.net/badge/donate/paypal/yellow)](https://paypal.me/eibenp)
+[![latest](https://img.shields.io/npm/v/homebridge-gree-ac?label=latest&logo=npm)](https://www.npmjs.com/package/homebridge-gree-ac)
+[![beta](https://img.shields.io/npm/v/homebridge-gree-ac/beta?label=beta&logo=npm&style=flat&color=orange&logoColor=white&default=none)](https://www.npmjs.com/package/homebridge-gree-ac)
+[![downloads](https://badgen.net/npm/dt/homebridge-gree-ac?label=downloads)](https://www.npmjs.com/package/homebridge-gree-ac)
+[![donate](https://badgen.net/badge/donate/paypal/yellow)](https://paypal.me/eibenp)
 
 > _*** Breaking changes ***_
 > 
