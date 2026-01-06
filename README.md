@@ -8,7 +8,12 @@
 [![downloads](https://badgen.net/npm/dt/homebridge-gree-ac?label=downloads)](https://www.npmjs.com/package/homebridge-gree-ac)
 [![donate](https://badgen.net/badge/donate/paypal/yellow)](https://paypal.me/eibenp)
 
-:gb: :de: :fr: :hungary: :es: :portugal:
+![UK](https://flagcdn.com/16x12/gb.png) English
+![FR](https://flagcdn.com/16x12/fr.png) Français
+![DE](https://flagcdn.com/16x12/de.png) Deutsch
+![HU](https://flagcdn.com/16x12/hu.png) Magyar
+![ES](https://flagcdn.com/16x12/es.png) Español
+![PT](https://flagcdn.com/16x12/pt.png) Português
 
 </span>
 
