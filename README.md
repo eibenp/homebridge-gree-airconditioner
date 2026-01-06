@@ -1,16 +1,22 @@
+<span align="center">
+
+# Homebridge GREE Air Conditioner Platform Plugin
+
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![latest](https://img.shields.io/npm/v/homebridge-gree-ac?label=latest&logo=npm)](https://www.npmjs.com/package/homebridge-gree-ac)
 [![beta](https://img.shields.io/npm/v/homebridge-gree-ac/beta?label=beta&logo=npm&style=flat&color=orange&logoColor=white&default=none)](https://www.npmjs.com/package/homebridge-gree-ac)
 [![downloads](https://badgen.net/npm/dt/homebridge-gree-ac?label=downloads)](https://www.npmjs.com/package/homebridge-gree-ac)
 [![donate](https://badgen.net/badge/donate/paypal/yellow)](https://paypal.me/eibenp)
 
+:gb: :de: :fr: :hungary: :es: :portugal:
+
+</span>
+
 > _*** Breaking changes ***_
 > 
 > Please read the [**Upgrade section**](#upgrade) before upgrading from version earlier than **v2.0.0** !
 >
 > _It is also recommended to read the [upgrade section](#upgrade) before any upgrade. It contains useful information regarding the latest version._
-
-# Homebridge GREE Air Conditioner Platform Plugin
 
 [Homebridge GREE Air Conditioner Platform Plugin](https://github.com/eibenp/homebridge-gree-airconditioner) is a dynamic platform plugin for [Homebridge](https://github.com/homebridge/homebridge) which allows control of GREE Air Conditioner devices from [Apple's Home App](https://www.apple.com/home-app/). (Makes GREE Air Conditioners HomeKit compatible.)
 
