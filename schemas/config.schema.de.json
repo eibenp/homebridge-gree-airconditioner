@@ -136,25 +136,25 @@
                   ]
                 },
                 {
-                  "title": "Standard nach dem Einschalten überschreiben",
+                  "title": "Änderung der Grundeinstellung nach dem Einschalten",
                   "enum": [
                     1
                   ]
                 },
                 {
-                  "title": "Standard nach dem Einschalten oder Deaktivieren der Schwenkbewegung überschreiben",
+                  "title": "Änderung der Grundeinstellung nach dem Einschalten oder beim Ausschalten der Schwenkbewegung",
                   "enum": [
                     2
                   ]
                 },
                 {
-                  "title": "Immer nach dem Einschalten festlegen",
+                  "title": "Einstellung gilt immer nach dem Einschalten",
                   "enum": [
                     3
                   ]
                 },
                 {
-                  "title": "Immer nach dem Einschalten oder Deaktivieren der Schwenkbewegung festlegen",
+                  "title": "Einstellung gilt immer nach dem Einschalten oder Ausschalten der Schwenkbewegung",
                   "enum": [
                     4
                   ]
@@ -167,37 +167,37 @@
               "default": 0,
               "oneOf": [
                 {
-                  "title": "Gerätestandard",
+                  "title": "Grundeinstellung des Gerätes",
                   "enum": [
                     0
                   ]
                 },
                 {
-                  "title": "Fixiert – Höchste",
+                  "title": "Fest – Maximum",
                   "enum": [
                     2
                   ]
                 },
                 {
-                  "title": "Fixiert – Hoch",
+                  "title": "Fest – Hoch",
                   "enum": [
                     3
                   ]
                 },
                 {
-                  "title": "Fixiert – Mittel",
+                  "title": "Fest – Mittel",
                   "enum": [
                     4
                   ]
                 },
                 {
-                  "title": "Fixiert – Niedrig",
+                  "title": "Fest – Niedrig",
                   "enum": [
                     5
                   ]
                 },
                 {
-                  "title": "Fixiert – Niedrigste",
+                  "title": "Fest – Minimum",
                   "enum": [
                     6
                   ]
@@ -210,37 +210,37 @@
               "default": 0,
               "oneOf": [
                 {
-                  "title": "Gerätestandard",
+                  "title": "Grundeinstellung des Gerätes",
                   "enum": [
                     0
                   ]
                 },
                 {
-                  "title": "Fixiert – Höchste",
+                  "title": "Fest – Maximum",
                   "enum": [
                     2
                   ]
                 },
                 {
-                  "title": "Fixiert – Hoch",
+                  "title": "Fest – Hoch",
                   "enum": [
                     3
                   ]
                 },
                 {
-                  "title": "Fixiert – Mittel",
+                  "title": "Fest – Mittel",
                   "enum": [
                     4
                   ]
                 },
                 {
-                  "title": "Fixiert – Niedrig",
+                  "title": "Fest – Niedrig",
                   "enum": [
                     5
                   ]
                 },
                 {
-                  "title": "Fixiert – Niedrigste",
+                  "title": "Fest – Minimum",
                   "enum": [
                     6
                   ]
@@ -347,7 +347,7 @@
               "key": "devices[].name",
               "flex": "1 1 50%",
               "title": "Gerätename:",
-              "description": "Individueller Gerätename. Verwende nur Buchstaben, Zahlen, Leerzeichen und Apostrophe. Mit einem Buchstaben oder einer Zahl beginnen und enden. Emojis werden nicht unterstützt.",
+              "description": "Individueller Gerätename. Nur Buchstaben, Zahlen, Leer- und Apostrophzeichen verwenden. Mit einem Buchstaben oder einer Zahl beginnen und enden. Emojis werden nicht unterstützt.",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac));"
               }
@@ -365,7 +365,7 @@
               "key": "devices[].ip",
               "flex": "1 1 50%",
               "title": "IP-Adresse:",
-              "description": "IP-Adresse des Geräts (leer = automatisch)",
+              "description": "IP-Adresse des Gerätes (leer = automatisch)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -383,7 +383,7 @@
               "key": "devices[].statusUpdateInterval",
               "flex": "1 1 50%",
               "title": "Aktualisierungsintervall:",
-              "description": "Intervall in Sekunden",
+              "description": "Aktualisierungsintervall in Sekunden",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -443,8 +443,8 @@
             {
               "key": "devices[].temperatureStepSize",
               "flex": "1 1 50%",
-              "title": "Temperaturschrittweite:",
-              "description": "Gültige Werte: 0,5 (°F) und 1 (°C)<BR />(Wenn leer oder ungültig, wird sie anhand der Homebridge-Einstellungen berechnet)",
+              "title": "Größe der Temperaturstufen:",
+              "description": "Gültige Werte: 0,5 (°F) und 1 (°C)<BR />(Wenn leer oder ungültig, erfolgt die Berechnung anhand der Homebridge-Einstellungen)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -470,8 +470,8 @@
             {
               "key": "devices[].modifyVerticalSwingPosition",
               "flex": "1 1 50%",
-              "title": "Vertikale Position anpassen:",
-              "description": "Wann die vertikale Lamellenposition geändert wird",
+              "title": "Senkrechte Position anpassen:",
+              "description": "Wann soll die senkrechte Lamellenposition geändert werden",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -479,8 +479,8 @@
             {
               "key": "devices[].defaultVerticalSwing",
               "flex": "1 1 50%",
-              "title": "Vertikale Position:",
-              "description": "Vertikale Lamellenposition für Heiz-/Kühlmodus",
+              "title": "Senkrechte Position:",
+              "description": "Senkrechte Lamellenposition für Heiz-/Kühlmodus",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].modifyVerticalSwingPosition !== 0);"
               }
@@ -497,8 +497,8 @@
             {
               "key": "devices[].defaultFanVerticalSwing",
               "flex": "1 1 50%",
-              "title": "Vertikale Lüfterposition:",
-              "description": "Vertikale Lamellenposition für den Lüftermodus",
+              "title": "Senkrechte Lüfterposition:",
+              "description": "Senkrechte Lamellenposition für den Lüftermodus",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && [3, 4].includes(model.devices[arrayIndices].modifyVerticalSwingPosition) && model.devices[arrayIndices].fanControlEnabled === true);"
               }
