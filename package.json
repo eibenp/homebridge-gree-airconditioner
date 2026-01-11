@@ -7,7 +7,7 @@
   "description": "Control GREE Air Conditioners from Homebridge",
   "author": "Peter Eiben",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/eibenp/homebridge-gree-airconditioner/tree/beta#readme",
+  "homepage": "https://github.com/eibenp/homebridge-gree-airconditioner#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/eibenp/homebridge-gree-airconditioner.git"
