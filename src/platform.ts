@@ -1,4 +1,4 @@
-import dgram from 'dgram';
+import dgram, { Socket } from 'dgram';
 import crypto from './crypto.js';
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { Categories } from 'homebridge';
@@ -7,7 +7,7 @@ import { readFileSync } from 'fs';
 
 import { GreeAirConditioner } from './platformAccessory.js';
 import { PLATFORM_NAME, PLUGIN_NAME, UDP_SCAN_PORT, DEFAULT_DEVICE_CONFIG, MODIFY_VERTICAL_SWING_POSITION, ENCRYPTION_VERSION, TS_TYPE,
-  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS } from './settings.js';
+  DEF_SCAN_INTERVAL, TEMPERATURE_LIMITS, TEMPERATURE_STEPS, BINDING_TIMEOUT } from './settings.js';
 
 import commands from './commands.js';
 import { version } from './version.js';
@@ -34,6 +34,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   private processedDevices: Record<string, boolean>;
   private skippedDevices: Record<string, boolean>;
   private warningShown: Record<string, boolean>;
+  private bridges: Record<string, { mac: string, key?: string, bound: boolean, encryptionVersion: number }>;
 
   private socket: dgram.Socket;
   private pluginAddresses: Record<string, string> = {};
@@ -62,6 +63,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     this.processedDevices = {};
     this.skippedDevices = {};
     this.warningShown = {};
+    this.bridges = {};
 
     // get temperature unit from Homebridge UI config
     const configPath = this.api.user.configPath();
@@ -175,18 +177,19 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           Buffer.from(msg).toString('base64'));
         return;
       }
-      if (message.i !== 1 || message.t !== 'pack') {
+      if (!message.pack) {
         this.log.debug('handleMessage - unknown response from %s: %j', rinfo.address, message);
+        this.log.warn('Warning: handleMessage - unknown response from %s', rinfo.address);
         return;
       }
       let pack, encryptionVersion:number;
       if (message.tag === undefined) {
         this.log.debug('handleMessage -> Encryption version: 1');
-        pack = crypto.decrypt_v1(message.pack);
+        pack = crypto.decrypt_v1(message.pack, message.i === 1 ? undefined : this.bridges[rinfo.address]?.key);
         encryptionVersion = 1;
       } else {
         this.log.debug('handleMessage -> Encryption version: 2');
-        pack = crypto.decrypt_v2(message.pack, message.tag);
+        pack = crypto.decrypt_v2(message.pack, message.tag, message.i === 1 ? undefined : this.bridges[rinfo.address]?.key);
         encryptionVersion = 2;
       }
       this.log.debug('handleMessage - Package -> %j', pack);
@@ -195,26 +198,106 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         // we set encryption to V2 if device version is not V1.x
         encryptionVersion = 2;
       }
-      if (pack.t === 'dev') {
-        if (this.config.disableAutoDetection !== true || this.config.devices?.find((item: { mac?: string }) => item.mac === pack.mac) !==
-          undefined) {
-          this.registerDevice({
-            ...pack,
-            address: rinfo.address,
-            port: rinfo.port,
-            encryptionVersion,
-          });
-        } else {
-          if (this.config.disableAutoDetection === true && this.config.devices?.find((item: { mac?: string }) => item.mac === pack.mac) ===
+      switch ((pack.t as string).toLowerCase()) {
+      case 'dev': // package type is device information
+        if (pack.subCnt === undefined) {
+          // normal Wifi device
+          if (this.config.disableAutoDetection !== true || this.config.devices?.find((item: { mac?: string }) => item.mac === pack.mac) !==
             undefined) {
-            if (this.skippedDevices[pack.mac] !== true) {
-              this.log.debug(`Accessory ${pack.mac} skipped`);
-              this.skippedDevices[pack.mac] = true;
+            this.registerDevice({
+              ...pack,
+              address: rinfo.address,
+              port: rinfo.port,
+              encryptionVersion,
+            });
+          } else {
+            if (this.config.disableAutoDetection === true && this.config.devices?.find((item: { mac?: string }) => item.mac === pack.mac) ===
+              undefined) {
+              if (this.skippedDevices[pack.mac] !== true) {
+                this.log.debug(`Accessory ${pack.mac} skipped`);
+                this.skippedDevices[pack.mac] = true;
+              }
             }
           }
+        } else {
+          // bridge
+          if (this.config.disableAutoDetection !== true || this.config.devices?.find((item: { mac?: string, disabled?: boolean }) =>
+            item.mac?.endsWith(`@${pack.mac}`) && item.disabled !== true) !== undefined && this.skippedDevices[pack.mac] !== true) {
+            if (pack.subCnt && pack.subCnt > 0) {
+              if (this.bridges[rinfo.address]?.bound) {
+                this.log.debug(`[${rinfo.address}] Device already bound`);
+              } else {
+                this.log.info(`[${rinfo.address}] Device is a bridge with %i subdevices`, pack.subCnt);
+                const message = {
+                  mac: pack.mac,
+                  t: 'bind',
+                  uid: 0,
+                };
+                this.log.debug(`[${rinfo.address}] Bind to device -> ${pack.mac}`);
+                this.bridges[rinfo.address] = { mac: pack.mac, bound: false, encryptionVersion: encryptionVersion };
+                this.sendEncryptedMessage(message, pack.mac, rinfo.address, rinfo.port, encryptionVersion);
+                setTimeout(this.checkBindingStatus.bind(this, 1, rinfo.address, rinfo.port, encryptionVersion, pack.mac), BINDING_TIMEOUT);
+              }
+            } else {
+              this.log.warn(`[${rinfo.address}] Warning: Device is a bridge but no subdevices found`);
+              this.skippedDevices[pack.mac] = true;
+            }
+          } else {
+            this.log.debug(`Accessory ${pack.mac} skipped`);
+            this.skippedDevices[pack.mac] = true;
+          }
         }
-      } else {
+        break;
+      case 'bindok': // package type is binding confirmation
+        this.log.debug(`[${rinfo.address}] Device binding in progress`);
+        this.bridges[rinfo.address].key = pack.key;
+        {
+          const message = {
+            mac: pack.mac,
+            t: 'subDev',
+            i: 0,
+          };
+          this.sendEncryptedMessage(message, pack.mac, rinfo.address, rinfo.port,
+            this.bridges[rinfo.address]?.encryptionVersion || encryptionVersion, this.bridges[rinfo.address]?.key);
+        }
+        break;
+      case 'sublist': // package type is subdevice list
+        if (!this.bridges[rinfo.address].bound) {
+          this.bridges[rinfo.address].bound = true;
+          this.log.success(`[${rinfo.address}] Device is bound -> ${this.bridges[rinfo.address].mac}`);
+          if (pack.c && pack.c > 0 && pack.list && pack.list.length > 0) {
+            // subdevices reported -> register them
+            let i: number;
+            for (i = 0; i < pack.c; i++) {
+              const mac = `${pack.list[i].mac}@${this.bridges[rinfo.address].mac}`;
+              if (this.config.disableAutoDetection !== true || this.config.devices?.find((item: { mac?: string }) => item.mac === mac)
+                !== undefined) {
+                this.registerDevice({
+                  ...(pack.list[i]),
+                  mac,
+                  address: rinfo.address,
+                  port: rinfo.port,
+                  encryptionVersion,
+                });
+              } else {
+                if (this.config.disableAutoDetection === true && this.config.devices?.find((item: { mac?: string }) => item.mac ===
+                  mac) === undefined) {
+                  if (this.skippedDevices[mac] !== true) {
+                    this.log.debug(`Accessory ${mac} skipped`);
+                    this.skippedDevices[mac] = true;
+                  }
+                }
+              }
+            }
+          } else {
+            this.log.warn(`[${rinfo.address}] Warning: No subdevices reported`);
+            this.skippedDevices[this.bridges[rinfo.address].mac] = true;
+          }
+        }
+        break;
+      default:
         this.log.debug('handleMessage - unknown package from %s: %j', rinfo.address.toString(), pack);
+        break;
       }
     } catch (err) {
       const msg = (err as Error).message;
@@ -222,58 +305,42 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
   };
 
+  checkBindingStatus(bindNo: number, address: string, port: number, encryptionVersion: number, mac: string) {
+    if (!this.bridges[address]?.bound) {
+      this.log.debug(`[${address}] Device (bridge) binding timeout`);
+      switch (bindNo) {
+      case 1:
+        // 1. timeout -> repeat bind request with alternate encryption version
+        {
+          let newEncryptionVersion: number;
+          if (encryptionVersion === 1) {
+            newEncryptionVersion = 2;
+          } else {
+            newEncryptionVersion = 1;
+          }
+          const message = {
+            mac: mac,
+            t: 'bind',
+            uid: 0,
+          };
+          this.bridges[address].encryptionVersion = newEncryptionVersion;
+          this.sendEncryptedMessage(message, mac, address, port, newEncryptionVersion);
+          setTimeout(this.checkBindingStatus.bind(this, bindNo + 1, address, port, newEncryptionVersion, mac), BINDING_TIMEOUT);
+        }
+        break;
+      default:
+        this.log.error(`[${address}] Error: Device (bridge) is not bound`,
+          '(unknown device type or device is malfunctioning [turning the power supply off and on may help])',
+          '- Restart homebridge when issue has fixed!');
+        break;
+      }
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerDevice = (deviceInfo: any) => {
     this.log.debug('registerDevice - deviceInfo:', JSON.stringify(deviceInfo));
     const devcfg = this.config.devices?.find((item: { mac?: string }) => item.mac === deviceInfo.mac) || { mac: deviceInfo.mac };
-    if (!devcfg.disabled && deviceInfo.subCnt !== undefined) {
-      // this is a bridge and bridge is enabled
-      if (!this.skippedDevices[deviceInfo.mac]) {
-        this.log.warn(`Accessory ${deviceInfo.mac} (${devcfg?.name ?? (deviceInfo.name || deviceInfo.mac)}) is a bridge.` +
-        ' Bridge accessories and devices attached to a bridge are not supported. If you are ready to help plugin development then' +
-        'you can create an issue and post detailed debug log about your environment.');
-        // skip bridge, only subdevices are AC units
-        this.skippedDevices[deviceInfo.mac] = true;
-        if (!deviceInfo.subCnt || deviceInfo.subCnt <= 0) {
-          this.log.warn(`Warning: No device is attached to bridge '${devcfg?.name ?? (deviceInfo.name || deviceInfo.mac)}'`);
-          return;
-        }
-        // read subdevice parameters from configuration
-        const subDevices:[] = this.config.devices?.filter( (cfg: { mac?: string }) => cfg.mac?.endsWith(`@${deviceInfo.mac}`) &&
-          (cfg.mac as string).length > deviceInfo.mac.length + 1 ) || [];
-        // register subdevices
-        subDevices.forEach((cfg: { mac?: string }) => {
-          const subDeviceInfo = { ...deviceInfo };
-          subDeviceInfo.mac = cfg.mac;
-          subDeviceInfo.uid = cfg.mac?.substring(0, cfg.mac?.indexOf('@'));
-          if (subDeviceInfo.subCnt !== undefined) {
-            delete subDeviceInfo.subCnt;
-          }
-          if (subDeviceInfo.name) {
-            subDeviceInfo.name = `${subDeviceInfo.uid}@${subDeviceInfo.name}`;
-          }
-          this.log.debug('registerDevice - sub device:', subDeviceInfo.mac);
-          this.registerDevice(subDeviceInfo);
-        });
-        // try to register all subdevices -- this part may be removed
-        for (let i = 1; i <= deviceInfo.subCnt; i++) {
-          const subDeviceInfo = { ...deviceInfo };
-          subDeviceInfo.mac = `${i.toString()}@${deviceInfo.mac}`;
-          subDeviceInfo.uid = i;
-          if (subDeviceInfo.subCnt !== undefined) {
-            delete subDeviceInfo.subCnt;
-          }
-          if (subDeviceInfo.name) {
-            subDeviceInfo.name = `${subDeviceInfo.uid.toString()}@${subDeviceInfo.name}`;
-          }
-          this.log.debug('registerDevice - sub device:', subDeviceInfo.mac);
-          this.registerDevice(subDeviceInfo);
-        }
-      } else {
-        this.log.debug('registerDevice - already processed:', devcfg?.name ?? (deviceInfo.name || deviceInfo.mac), deviceInfo.mac);
-      }
-      return;
-    }
     const deviceConfig = {
       // parameters read from config
       ...devcfg,
@@ -429,18 +496,19 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       }
     }
     // force encryption version if set in config
+    if (deviceInfo.mac.includes('@')) {
+      // bridged subdevice - forcing encryption version is not supported, it must be always AUTO
+      deviceConfig.encryptionVersion = ENCRYPTION_VERSION.auto;
+    }
     if (deviceConfig.encryptionVersion !== ENCRYPTION_VERSION.auto) {
       deviceInfo.encryptionVersion = deviceConfig.encryptionVersion;
       this.log.debug(`Accessory ${deviceInfo.mac} encryption version forced:`, deviceInfo.encryptionVersion);
     }
 
-    let accessory: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac];
-    let accessory_ts: MyPlatformAccessory | undefined = this.devices[deviceInfo.mac + '_ts'];
+    let accessory: MyPlatformAccessory | undefined = this.getAccessory(deviceInfo.mac);
+    let accessory_ts: MyPlatformAccessory | undefined = this.getAccessory(deviceInfo.mac + '_ts');
 
-    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig?.mac.substring(deviceConfig?.mac.indexOf('@')+1))) {
-      if (!devcfg || Object.keys(devcfg).length === 0) {
-        this.log.debug('14 DEBUG:', deviceConfig);
-      }
+    if (deviceConfig?.disabled || !/^[a-f0-9]{12}$/.test(deviceConfig?.mac.substring(deviceConfig?.mac.indexOf('@')+1) || '000000000000')) {
       //do not skip unconfigured devices
       if (!this.skippedDevices[deviceInfo.mac]) {
         this.log.info(`Accessory ${deviceInfo.mac} skipped`);
@@ -476,7 +544,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     }
 
     if (accessory && this.processedDevices[accessory.UUID]) {
-      // already initalized
+      // already initialized
       this.log.debug('registerDevice - already processed:', accessory.displayName, accessory.context.device.mac, accessory.UUID);
       return;
     }
@@ -506,7 +574,9 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
 
     // unregister temperaturesensor accessory if configuration has changed from separate to any other
     if (accessory_ts && deviceConfig.temperatureSensor !== TS_TYPE.separate) {
-      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
+      if (accessory_ts.registered === true) {
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory_ts]);
+      }
       delete this.devices[deviceInfo.mac + '_ts'];
       this.log.debug('registerDevice - unregister:', accessory_ts.displayName, accessory_ts.UUID);
       accessory_ts = undefined;
@@ -534,7 +604,44 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
       this.log.debug(`registerDevice - ${accessory.context.deviceType} created:`, accessory.displayName,
         accessory.context.device.mac, accessory.UUID);
       // load heatercooler accessory
-      new GreeAirConditioner(this, accessory, deviceConfig, accessory_ts?.context.device.mac);
+      const acsocket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+      const ac = new GreeAirConditioner(this, accessory, deviceConfig, accessory_ts?.context.device.mac, acsocket);
+      acsocket.on('error', (err) => {
+        this.log.error(`[${ac.getDeviceLabel()}] Network - Error:`, err.message);
+      });
+      if (!ac.accessory.context.device.mac.includes('@')) {
+        // normal device -> bind now
+        acsocket.on('message', this.handleACMessage.bind(this, ac, acsocket));
+      }
+      acsocket.on('close', () => {
+        this.log.error(`[${ac.getDeviceLabel()}] Network - Connection closed`);
+      });
+      if (this.ports.indexOf(deviceConfig.port || 0) >= 0) {
+        this.log.warn(`[${ac.getDeviceLabel()}] Warning: Configured port (%i) is already used - replacing with auto assigned port`,
+          deviceConfig.port);
+        deviceConfig.port = undefined;
+      }
+      acsocket.bind(deviceConfig.port, undefined, () => {
+        this.log.info(`[${ac.getDeviceLabel()}] Device handler is listening on UDP port %d`, acsocket.address().port);
+        this.ports.push(acsocket.address().port);
+        acsocket.setBroadcast(false);
+        if (!ac.accessory.context.device.mac.includes('@')) {
+          // normal device -> bind now
+          this.sendACBindRequest(ac);
+          setTimeout(this.checkACBindingStatus.bind(this, 1, ac), BINDING_TIMEOUT);
+        } else {
+          // bridged device -> bridge already bound
+          this.log.debug(`[${ac.getDeviceLabel()}] Device binding in progress`);
+          ac.key = this.bridges[ac.accessory.context.device.address]?.key;
+          this.log.debug(`[${ac.getDeviceLabel()}] Device key ->`, ac.key);
+          acsocket.on('message', ac.handleMessage);
+          ac.accessory.bound = true;
+          ac.initAccessory();
+          this.log.success(`[${ac.getDeviceLabel()}] Device is bound -> ${ac.accessory.context.device.mac}`);
+          ac.requestDeviceStatus();
+          setInterval(ac.requestDeviceStatus.bind(ac), ac.deviceConfig.statusUpdateInterval * 1000);
+        }
+      });
     }
   };
 
@@ -553,6 +660,50 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
         }
       });
     });
+  }
+
+  sendEncryptedMessage(message: unknown, mac: string, address: string, port: number, encryptionVersion: number, key?: string) {
+    this.log.debug(`[${address}] sendMessage - Package -> %j`, message);
+    this.log.debug(`[${address}] sendMessage -> Encryption version: %i`, encryptionVersion);
+    let pack:string, tag:string;
+    if (encryptionVersion === 1) {
+      pack = crypto.encrypt_v1(message, key);
+      tag = '';
+    } else if (encryptionVersion === 2) {
+      const encrypted = crypto.encrypt_v2(message, key);
+      pack = encrypted.pack;
+      tag = encrypted.tag;
+    } else {
+      this.log.warn(`[${address}] Warning: sendMessage -> Unsupported encryption version`);
+      return;
+    }
+    const payload = (tag === '') ? {
+      tcid: mac,
+      uid: 0,
+      t: 'pack',
+      pack,
+      i: key === undefined ? 1 : 0,
+      cid: 'app',
+    } : {
+      tcid: mac,
+      uid: 0,
+      t: 'pack',
+      pack,
+      i: key === undefined ? 1 : 0,
+      tag,
+      cid: 'app',
+    };
+    try {
+      const msg = JSON.stringify(payload);
+      this.log.debug(`[${address}] sendMessage`, msg);
+      this.socket.send(
+        msg,
+        port,
+        address,
+      );
+    } catch (err) {
+      this.log.error(`[${address}] sendMessage - Error:`, (err as Error).message);
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -590,7 +741,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     // Add IPs from configuration but only if at least one host address found (add only for valid mac addresses)
     if (Object.keys(pluginAddresses).length > 0) {
       const devcfgs:[] = this.config.devices?.filter((item: { ip?: string, disabled?: boolean, mac?: string }) =>
-        item.ip && !item.disabled && /^[a-f0-9]{12}$/.test(item.mac || '')) || [];
+        item.ip && !item.disabled && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(item.mac || '')) || [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       devcfgs.forEach((value: any) => {
         const ip: string = value.ip;
@@ -610,7 +761,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           if (skipAddress === undefined) {
             pluginAddresses[ip] = '255.255.255.255';
           } else {
-            this.log.debug('AC Unit (%s) is already on broadcast list - skipping', skipAddress);
+            this.log.debug('Device (%s) is already on broadcast list - skipping', skipAddress);
           }
         } else {
           this.log.warn('Warning: Invalid IP address found in configuration: %s - skipping', ip);
@@ -623,4 +774,90 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   public getAccessory(mac: string) {
     return this.devices[mac];
   }
+
+  // accessory specific functions
+  sendACBindRequest(ac: GreeAirConditioner) {
+    const message = {
+      mac: ac.accessory.context.device.mac,
+      t: 'bind',
+      uid: 0,
+    };
+    this.log.debug(`[${ac.getDeviceLabel()}] Bind to device -> ${ac.accessory.context.device.mac}`);
+    ac.sendMessage(message);
+  }
+
+  checkACBindingStatus(bindNo: number, ac: GreeAirConditioner) {
+    if (!ac.accessory.bound) {
+      this.log.debug(`[${ac.getDeviceLabel()}] Device binding timeout`);
+      switch (bindNo){
+      case 1:
+        // 1. timeout -> repeat bind request with alternate encryption version
+        if (ac.accessory.context.device.encryptionVersion === 1) {
+          ac.accessory.context.device.encryptionVersion = 2;
+        } else {
+          ac.accessory.context.device.encryptionVersion = 1;
+        }
+        this.sendACBindRequest(ac);
+        setTimeout(this.checkACBindingStatus.bind(this, bindNo + 1, ac), BINDING_TIMEOUT);
+        break;
+      default:
+        this.log.error(`[${ac.getDeviceLabel()}] Error: Device is not bound`,
+          '(unknown device type or device is malfunctioning [turning the power supply off and on may help])',
+          '- Restart homebridge when issue has fixed!');
+        break;
+      }
+    }
+  }
+
+  handleACMessage = (ac: GreeAirConditioner, socket: Socket, msg: Buffer,
+    rinfo: {address: string, family: string, port: number, size: number}) => {
+    if (ac.accessory.context.device.address === rinfo.address) {
+      this.log.debug(`[${ac.getDeviceLabel()}] handleMessage -> %s`, msg.toString());
+      const message = JSON.parse(msg.toString());
+      this.log.debug(`[${ac.getDeviceLabel()}] handleMessage -> Encryption version: %i`,
+        ac.accessory.context.device.encryptionVersion);
+      if (!message.pack) {
+        this.log.debug(`[${ac.getDeviceLabel()}] handleMessage - Unknown message: %j`, message);
+        this.log.warn(`[${ac.getDeviceLabel()}] Warning: handleMessage - Unknown response from device`);
+        return;
+      }
+      let pack;
+      if (ac.accessory.context.device.encryptionVersion === 1) {
+        pack = crypto.decrypt_v1(message.pack, message.i === 1 ? undefined : ac.key);
+      } else if (ac.accessory.context.device.encryptionVersion === 2 && message.tag !== undefined) {
+        pack = crypto.decrypt_v2(message.pack, message.tag, message.i === 1 ? undefined : ac.key);
+      } else {
+        this.log.debug(`[${ac.getDeviceLabel()}] handleMessage - Unknown message: %j`, message);
+        this.log.warn(`[${ac.getDeviceLabel()}] Warning: handleMessage - Unknown response from device`);
+        return;
+      }
+      this.log.debug(`[${ac.getDeviceLabel()}] handleMessage - Package -> %j`, pack);
+      switch ((pack.t as string).toLowerCase()) {
+      case 'bindok': // package type is binding confirmation
+        if(!ac.accessory.bound) {
+          this.log.debug(`[${ac.getDeviceLabel()}] Device binding in progress`);
+          ac.key = pack.key;
+          this.log.debug(`[${ac.getDeviceLabel()}] Device key -> ${ac.key}`);
+          ac.requestDeviceStatus();
+        }
+        break;
+      case 'dat': // package type is device status
+      case 'res': // package type is response
+        if (!ac.accessory.bound) {
+          ac.accessory.bound = true;
+          ac.initAccessory();
+          this.log.success(`[${ac.getDeviceLabel()}] Device is bound -> ${ac.accessory.context.device.mac}`);
+          socket.on('message', ac.handleMessage);
+          socket.off('message', this.handleACMessage);
+          ac.requestDeviceStatus();
+          setInterval(ac.requestDeviceStatus.bind(ac), ac.deviceConfig.statusUpdateInterval * 1000);
+        }
+        break;
+      default:
+        this.log.debug(`[${ac.getDeviceLabel()}] handleMessage - Unknown message: %j`, message);
+        this.log.warn(`[${ac.getDeviceLabel()}] Warning: handleMessage - Unknown response from device`);
+        break;
+      }
+    }
+  };
 }
