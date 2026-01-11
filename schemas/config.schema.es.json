@@ -383,7 +383,7 @@
               "key": "devices[].statusUpdateInterval",
               "flex": "1 1 50%",
               "title": "Intervalo de actualización del estado:",
-              "description": "Intervalo en segundos",
+              "description": "Intervalo de actualización (en segundos)",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -471,7 +471,7 @@
               "key": "devices[].modifyVerticalSwingPosition",
               "flex": "1 1 50%",
               "title": "Modificar posición vertical:",
-              "description": "Cuándo modificar la posición vertical de las lamas",
+              "description": "Cuándo modificar la posición de oscilación vertical",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true);"
               }
@@ -480,7 +480,7 @@
               "key": "devices[].defaultVerticalSwing",
               "flex": "1 1 50%",
               "title": "Posición vertical:",
-              "description": "Posición vertical de las lamas para modos de calefacción/refrigeración",
+              "description": "Posición de oscilación vertical para los modos de calor/frío",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && model.devices[arrayIndices].modifyVerticalSwingPosition !== 0);"
               }
@@ -498,7 +498,7 @@
               "key": "devices[].defaultFanVerticalSwing",
               "flex": "1 1 50%",
               "title": "Posición vertical del ventilador:",
-              "description": "Posición vertical de las lamas para modo ventilador",
+              "description": "Posición de oscilación vertical para el modo ventilador",
               "condition": {
                 "functionBody": "return (model.devices && model.devices[arrayIndices] && model.devices[arrayIndices].mac && /^([a-f0-9]{12}|default|[a-f0-9]+@[a-f0-9]{12})$/.test(model.devices[arrayIndices].mac) && model.devices[arrayIndices].disabled !== true && [3, 4].includes(model.devices[arrayIndices].modifyVerticalSwingPosition) && model.devices[arrayIndices].fanControlEnabled === true);"
               }
