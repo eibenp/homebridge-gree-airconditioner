@@ -209,12 +209,17 @@ _Only the relevant part of the configuration file is displayed:_
 The plugin supports Homebridge configuration UI in multiple languages. International UI requires [Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x) version v5.13.0 or later. Unsupported UI versions and languages use the English UI.
 Supported languages:
 
-- ![UK](https://flagcdn.com/16x12/gb.png) English (EN)
-- ![FR](https://flagcdn.com/16x12/fr.png) Français (FR - French)
-- ![DE](https://flagcdn.com/16x12/de.png) Deutsch (DE - German)
-- ![HU](https://flagcdn.com/16x12/hu.png) Magyar (HU - Hungarian)
-- ![ES](https://flagcdn.com/16x12/es.png) Español (ES - Spanish)
-- ![PT](https://flagcdn.com/16x12/pt.png) Português (PT - Portuguese / Portugal)
+&nbsp; ![UK](https://flagcdn.com/16x12/gb.png) English (EN)
+
+&nbsp; ![FR](https://flagcdn.com/16x12/fr.png) Français (FR - French)
+
+&nbsp; ![DE](https://flagcdn.com/16x12/de.png) Deutsch (DE - German)
+
+&nbsp; ![HU](https://flagcdn.com/16x12/hu.png) Magyar (HU - Hungarian)
+
+&nbsp; ![ES](https://flagcdn.com/16x12/es.png) Español (ES - Spanish)
+
+&nbsp; ![PT](https://flagcdn.com/16x12/pt.png) Português (PT - Portuguese / Portugal)
 
 ### Minimal configuration
 

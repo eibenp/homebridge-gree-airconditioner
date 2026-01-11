@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.3.0-beta.7] - 2026-01-04
+## [2.3.0] - 2026-01-11
 
 **<ins>Reminders:</ins>**
 - **All devices on the local subnet are automatically added to Homebridge since v2.1.7** Please use the "disabled" parameter to disable individual devices, or disable automatic device detection globally starting from version v2.2.2.
