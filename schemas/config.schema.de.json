@@ -26,6 +26,10 @@
         "type": "boolean",
         "default": false
       },
+      "disableBroadcast": {
+        "type": "boolean",
+        "default": false
+      },
       "devices": {
         "type": "array",
         "items": {
@@ -318,9 +322,18 @@
         },
         {
           "key": "disableAutoDetection",
-          "flex": "1 1 100%",
+          "flex": "1 1 50%",
           "title": "Automatische Erkennung deaktivieren",
           "description": "Wenn die automatische Erkennung deaktiviert ist, sind nur die unter Geräte aufgeführten Klimageräte verfügbar"
+        },
+        {
+          "key": "disableBroadcast",
+          "flex": "1 1 50%",
+          "title": "Broadcast deaktivieren",
+          "description": "Wenn Broadcast deaktiviert ist, werden im Netzwerk nur Unicast-Nachrichten gesendet",
+          "condition": {
+            "functionBody": "return model.disableAutoDetection;"
+          }
         }
       ]
     },

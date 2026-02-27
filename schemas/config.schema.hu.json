@@ -26,6 +26,10 @@
         "type": "boolean",
         "default": false
       },
+      "disableBroadcast": {
+        "type": "boolean",
+        "default": false
+      },
       "devices": {
         "type": "array",
         "items": {
@@ -318,9 +322,18 @@
         },
         {
           "key": "disableAutoDetection",
-          "flex": "1 1 100%",
+          "flex": "1 1 50%",
           "title": "Automatikus felismerés kikapcsolása",
           "description": "Ha az automatikus felismerés ki van kapcsolva, csak az Eszközök alatt felsorolt klímák lesznek elérhetők"
+        },
+        {
+          "key": "disableBroadcast",
+          "flex": "1 1 50%",
+          "title": "Broadcast kikapcsolása",
+          "description": "Ha a broadcast ki van kapcsolva, csak unicast üzeneteket küld a rendszer a hálózaton",
+          "condition": {
+            "functionBody": "return model.disableAutoDetection;"
+          }
         }
       ]
     },

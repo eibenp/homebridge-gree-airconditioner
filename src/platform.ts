@@ -149,7 +149,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
   bindCallback() {
     this.log.success(`${PLATFORM_NAME} (${PLUGIN_NAME}) v%s is running on UDP port %d`, version, this.socket.address().port);
     this.ports.push(this.socket.address().port);
-    this.socket.setBroadcast(true);
+    this.socket.setBroadcast(true); // always enable broadcast on socket (even if broadcast is disabled by config; this is the fallback)
     this.sendScan();
     setInterval(() => {
       this.sendScan();
@@ -742,6 +742,13 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
     if (Object.keys(pluginAddresses).length > 0) {
       const devcfgs:[] = this.config.devices?.filter((item: { ip?: string, disabled?: boolean, mac?: string }) =>
         item.ip && !item.disabled && /^([a-f0-9]{12}|[a-f0-9]+@[a-f0-9]{12})$/.test(item.mac || '')) || [];
+      if (this.config.disableAutoDetection === true && this.config.disableBroadcast === true && devcfgs.length > 0) {
+        // remove all broadcast addresses if broadcast is disabled and at least 1 IP address is defined
+        this.log.debug('Broadcast disabled');
+        Object.keys(pluginAddresses).forEach((key) => {
+          delete pluginAddresses[key];
+        });
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       devcfgs.forEach((value: any) => {
         const ip: string = value.ip;

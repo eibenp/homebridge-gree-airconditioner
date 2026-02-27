@@ -301,6 +301,7 @@ You can always override any default parameter by adding a device identified by M
             "port": 7002,
             "scanInterval": 60,
             "disableAutoDetection": false,
+            "disableBroadcast": false,
             "devices": [
                 {
                     "mac": "502cc6000000",
@@ -335,6 +336,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
 * **port** - free UDP port (optional) (plugin will use this port in bridge level network communication (e.g. device detection); valid values: 1025 - 65535) **Do not specify a port unless you have trouble with automatic port assignment!**
 * **scanInterval** - time period in seconds between device query retries (defaults to 60 sec if missing)
 * **disableAutoDetection** - if set to 'true', only the AC units listed in the devices section will be enabled
+* **disableBroadcast** - if set to 'true' and device IP address is set in configuration, then only unicast messages are sent on the network _(if no valid IP was found, then broadcast stays turned on as a fallback)_ **This parameter has effect only if disableAutoDetection = true**
 * **devices** - devices should be listed in this block (specify as many devices as you want to customize or disable)
   * **mac** - MAC address (Serial Number) of the device (required to identify the device, also if only one device exists) Use the 'default' keyword instead of the MAC address to define default configuration for multiple devices. **Must be unique across all devices!**
   * **name*** - custom name of the device (optional) Please use only alphanumeric, space, and apostrophe characters. Ensure it starts and ends with an alphabetic or numeric character, and avoid emojis. (The name is changeable in Home App and any changes made in Home App are kept until the device is disabled which removes it from Home App.)

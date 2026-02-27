@@ -26,6 +26,10 @@
         "type": "boolean",
         "default": false
       },
+      "disableBroadcast": {
+        "type": "boolean",
+        "default": false
+      },
       "devices": {
         "type": "array",
         "items": {
@@ -318,9 +322,18 @@
         },
         {
           "key": "disableAutoDetection",
-          "flex": "1 1 100%",
+          "flex": "1 1 50%",
           "title": "Désactiver la détection automatique",
           "description": "Si la détection automatique est désactivée, seuls les climatiseurs listés dans Appareils seront disponibles"
+        },
+        {
+          "key": "disableBroadcast",
+          "flex": "1 1 50%",
+          "title": "Désactiver la broadcast",
+          "description": "Si la broadcast est désactivée, seuls les messages unicast sont envoyés sur le réseau",
+          "condition": {
+            "functionBody": "return model.disableAutoDetection;"
+          }
         }
       ]
     },

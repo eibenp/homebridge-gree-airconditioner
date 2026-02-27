@@ -26,6 +26,10 @@
         "type": "boolean",
         "default": false
       },
+      "disableBroadcast": {
+        "type": "boolean",
+        "default": false
+      },
       "devices": {
         "type": "array",
         "items": {
@@ -318,9 +322,18 @@
         },
         {
           "key": "disableAutoDetection",
-          "flex": "1 1 100%",
+          "flex": "1 1 50%",
           "title": "Disable auto detection",
           "description": "If auto detection is disabled, only the AC units listed in the devices section will be enabled"
+        },
+        {
+          "key": "disableBroadcast",
+          "flex": "1 1 50%",
+          "title": "Disable broadcast",
+          "description": "If broadcast is disabled, only unicast messages are sent on the network",
+          "condition": {
+            "functionBody": "return model.disableAutoDetection;"
+          }
         }
       ]
     },
