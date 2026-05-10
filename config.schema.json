@@ -125,6 +125,26 @@
               "multipleOf": 0.5,
               "required": false
             },
+            "antiFrostSwitch": {
+              "type": "boolean",
+              "title": "Enable anti-frost switch",
+              "default": false,
+              "description": "Adds a Switch service to the accessory. When ON: forces HEAT mode, enables NoFrost and sets target to antiFrostTemperature. When OFF: restores previous setpoint."
+            },
+            "antiFrostTemperature": {
+              "type": "number",
+              "title": "Anti-frost temperature (°C)",
+              "default": 8,
+              "minimum": 8,
+              "maximum": 30,
+              "description": "Target temperature used when anti-frost is enabled."
+            },
+            "antiFrostNameSuffix": {
+              "type": "string",
+              "title": "Anti-frost switch name suffix",
+              "default": "anti-frost",
+              "description": "Suffix appended to the device name for the switch label."
+            },
             "disabled": {
               "type": "boolean"
             },

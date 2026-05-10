@@ -55,6 +55,9 @@ export interface DeviceConfig {
   ip?: string;
   fanControlEnabled?: boolean;
   silentTimeRange?: string;
+  antiFrostSwitch?: boolean;
+  antiFrostTemperature?: number;
+  antiFrostNameSuffix?: string;
 }
 
 // in DEFAULT_DEVICE_CONFIG we don't need nullable entries -> override optional entries with required ones
