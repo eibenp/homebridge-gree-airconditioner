@@ -55,6 +55,7 @@ export interface DeviceConfig {
   ip?: string;
   fanControlEnabled?: boolean;
   silentTimeRange?: string;
+  keepAliveTime?: string; // HH:MM - daily time of the keep-alive power pulse (empty/undefined = disabled)
 }
 
 // in DEFAULT_DEVICE_CONFIG we don't need nullable entries -> override optional entries with required ones

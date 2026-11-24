@@ -640,6 +640,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           this.log.success(`[${ac.getDeviceLabel()}] Device is bound -> ${ac.accessory.context.device.mac}`);
           ac.requestDeviceStatus();
           setInterval(ac.requestDeviceStatus.bind(ac), ac.deviceConfig.statusUpdateInterval * 1000);
+          ac.startKeepAlive();
         }
       });
     }
@@ -858,6 +859,7 @@ export class GreeACPlatform implements DynamicPlatformPlugin {
           socket.off('message', this.handleACMessage);
           ac.requestDeviceStatus();
           setInterval(ac.requestDeviceStatus.bind(ac), ac.deviceConfig.statusUpdateInterval * 1000);
+          ac.startKeepAlive();
         }
         break;
       default:

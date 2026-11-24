@@ -25,6 +25,8 @@ export class GreeAirConditioner {
   private powerPending = -1;
   private modePending = -1;
   private silentTimeRanges?: [number, number][];
+  private keepAliveTimer?: NodeJS.Timeout;
+  private keepAliveRunning = false;
 
   constructor(
     private readonly platform: GreeACPlatform,
@@ -1801,6 +1803,77 @@ export class GreeAirConditioner {
       this.modePending = (values[keys.indexOf(commands.mode.code)] as number);
     }
     this.sendMessage(message);
+  }
+
+  // keep-alive: once a day, if the device is OFF, switch it on for 1 second and then off again,
+  // so the communication with the device is exercised regularly
+
+  startKeepAlive() {
+    const time = this.deviceConfig.keepAliveTime;
+    if (!time || !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
+      if (time) {
+        this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: invalid keepAliveTime '${time}' (expected HH:MM) - keep-alive disabled`);
+      }
+      return;
+    }
+    if (this.keepAliveTimer) {
+      return; // already scheduled
+    }
+    this.platform.log.info(`[${this.getDeviceLabel()}] Keep-alive power pulse scheduled daily at ${time}`);
+    this.scheduleKeepAlive();
+  }
+
+  private scheduleKeepAlive() {
+    const [hh, mm] = (this.deviceConfig.keepAliveTime as string).split(':').map(Number);
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
+    if (next.getTime() <= now.getTime()) {
+      next.setDate(next.getDate() + 1); // setDate keeps the local time correct across DST changes
+    }
+    this.platform.log.debug(`[${this.getDeviceLabel()}] Next keep-alive -> ${next.toString()}`);
+    // setTimeout max delay is ~24.8 days, a daily delay is always fine
+    this.keepAliveTimer = setTimeout(() => {
+      this.runKeepAlive();
+      this.scheduleKeepAlive();
+    }, next.getTime() - now.getTime());
+    this.keepAliveTimer.unref?.();
+  }
+
+  private runKeepAlive() {
+    if (!this.accessory.bound || this.keepAliveRunning) {
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Keep-alive skipped (not bound or already running)`);
+      return;
+    }
+    if (this.status[commands.power.code] === undefined || this.power || this.powerPending !== -1 || this.modePending !== -1) {
+      // unknown state, already ON (communication is in use) or a change is pending -> nothing to do
+      this.platform.log.debug(`[${this.getDeviceLabel()}] Keep-alive skipped (device is ON or state is unknown/pending)`);
+      return;
+    }
+    this.keepAliveRunning = true;
+    this.platform.log.info(`[${this.getDeviceLabel()}] Keep-alive: device is OFF -> power ON for 1 second`);
+    // buzzer is always disabled for keep-alive commands
+    this.sendCommand({ [commands.power.code]: commands.power.value.on, [commands.buzzer.code]: commands.buzzer.value.off });
+    setTimeout(() => this.keepAlivePowerOff(1), 1000);
+  }
+
+  private keepAlivePowerOff(attempt: number) {
+    this.platform.log.info(`[${this.getDeviceLabel()}] Keep-alive: power OFF (attempt ${attempt})`);
+    this.sendCommand({ [commands.power.code]: commands.power.value.off, [commands.buzzer.code]: commands.buzzer.value.off });
+    // verify that the device really switched off (UDP is not reliable) and retry if not
+    setTimeout(() => {
+      this.requestDeviceStatus();
+      setTimeout(() => {
+        if (this.power && attempt < 3) {
+          this.platform.log.warn(`[${this.getDeviceLabel()}] Warning: Keep-alive: device still ON -> retrying power OFF`);
+          this.keepAlivePowerOff(attempt + 1);
+        } else {
+          if (this.power) {
+            this.platform.log.error(`[${this.getDeviceLabel()}] Keep-alive: could not confirm power OFF - please check the device`);
+          }
+          this.keepAliveRunning = false;
+        }
+      }, 2000);
+    }, 2000);
   }
 
   requestDeviceStatus() {

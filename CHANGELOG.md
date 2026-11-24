@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### New features
+- New device parameter `keepAliveTime` (HH:MM): once a day, if the device is OFF, it is switched ON for 1 second and then OFF again (without beep) to keep the connection alive. Disabled by default.
+
 ## [2.3.2] - 2026-05-08
 
 **<ins>Reminders:</ins>**
