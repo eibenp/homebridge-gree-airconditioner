@@ -273,6 +273,7 @@ It is possible to set some or all parameters to a customized value which is assi
                     "fanControlEnabled": false,
                     "defaultFanVerticalSwing": 0,
                     "silentTimeRange": "",
+                    "keepAliveTime": "",
                     "disabled": false
                 }
             ]
@@ -326,6 +327,7 @@ You can always override any default parameter by adding a device identified by M
                     "fanControlEnabled": false,
                     "defaultFanVerticalSwing": 0,
                     "silentTimeRange": "",
+                    "keepAliveTime": "",
                     "disabled": false
                 }
             ]
@@ -360,6 +362,7 @@ _It's not recommended to add the port and ip parameters. The above example conta
   * **fanControlEnabled** - by default fan mode is not supported by the plugin because Apple's Heater Cooler accessory does not support fan mode; setting this parameter to true adds an additional Fan accessory to the Home App and turns on fan mode support in the plugin
   * **defaultFanVerticalSwing** - specify the vertical swing position to be set in fan mode when always set is selected; valid values: Device default (0) = use device default, same position as used by the device by default without selecting a specific position / one of the following 5 positions: fixed Highest (2), fixed Higher (3), fixed Middle (4), fixed Lower (5), fixed Lowest (6)
   * **silentTimeRange** - specify the time range when device shouldn't beep on commands received (format: HH:MM-HH:MM, e.g.: 22:00-08:30) _(not all AC units support this feature)_
+  * **keepAliveTime** - specify the time of day (format: HH:MM, e.g.: 03:00) when the plugin should send a daily keep-alive power pulse: if the device is OFF at that time, it is switched ON for 1 second and then OFF again (without beep), to keep the communication with the device alive; leave empty to disable (default)
   * **disabled** - set to true if you do not want to control this device in the Home App _(can be used also to temporarily remove the device from Home App but not if the device is not responding on the network any more)_
 
 (*) these parameters are initalized only once on device enable; device must be disabled an re-enabled to apply a new value; name is customizable in Home App independently from Homebridge settings
